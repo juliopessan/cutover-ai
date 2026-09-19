@@ -2,54 +2,54 @@
 
 [![CI](https://github.com/juliopessan/cutover-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/juliopessan/cutover-ai/actions/workflows/ci.yml)
 
-**A model can draft your migration plan. It cannot be trusted to grade it.**
+**Um modelo pode redigir o seu plano de migração. Não dá para confiar nele para corrigi-lo.**
 
-Cutover is governed data migration to Microsoft Fabric and Databricks: what can be measured is computed, every AI call is budgeted before it costs a token, and what cannot be verified is flagged.
+O Cutover é migração de dados governada para Microsoft Fabric e Databricks: o que pode ser medido é calculado, toda chamada de IA tem orçamento antes de custar um token e o que não pode ser verificado é sinalizado.
 
-<p align="center"><img src="docs/assets/landing.png" alt="Cutover landing page: headline 'Cada número da sua migração é medido, não afirmado' beside the cost-gate ledger read from dispatch.yaml" width="860"></p>
+<p align="center"><img src="docs/assets/landing.png" alt="Landing page do Cutover: a chamada 'Cada número da sua migração é medido, não afirmado' ao lado do painel do portão de custo, lido do dispatch.yaml" width="860"></p>
 
-## Why this exists
+## Por que isto existe
 
-AI-assisted migrations tend to fail quietly, in three places:
+Migrações assistidas por IA costumam falhar em silêncio, em três lugares:
 
-- **Spend has no ceiling.** Model calls are made without a budget per artifact, so cost is discovered on the invoice.
-- **The model grades its own work.** A review by the same model that wrote the mapping tends to approve it. Counts, types and duplicates should be computed from the data instead.
-- **Suggestions get applied without an owner.** A mapping that came from a model needs a person to decide before anything runs.
+- **O gasto não tem teto.** As chamadas ao modelo são feitas sem orçamento por artefato, e o custo só aparece na fatura.
+- **O modelo corrige o próprio trabalho.** Uma revisão feita pelo mesmo modelo que escreveu o mapeamento tende a aprová-lo. Contagens, tipos e duplicatas devem ser calculados a partir dos dados.
+- **Sugestões são aplicadas sem dono.** Um mapeamento que veio de um modelo precisa de uma pessoa que decida antes de qualquer execução.
 
-Cutover closes each one: a Tollgate gate in front of every provider call, deterministic checks for anything measurable, and human approval on model suggestions. Migration-critical work stays deterministic; models only analyse, suggest and explain.
+O Cutover fecha cada uma: um portão do Tollgate na frente de toda chamada ao provedor, verificações determinísticas para tudo que for mensurável e aprovação humana sobre as sugestões do modelo. O trabalho crítico da migração permanece determinístico; os modelos só analisam, sugerem e explicam.
 
-## What works today
+## O que funciona hoje
 
-Cutover is alpha. Here is what you can use now and what is still being built.
+O Cutover está em alfa. Abaixo, o que já dá para usar e o que ainda está sendo construído.
 
-| Step | What happens | Status |
+| Etapa | O que acontece | Status |
 |---|---|---|
-| Onboarding | `cutover onboard` asks for business, security and target requirements and reports `blocked`, `needs_review` or `ready` | Available (CLI) |
-| Upload and profile | The web app profiles a CSV: rows, types, empty cells, duplicates, SHA-256, Delta-compatible column names. Nothing is sent to an LLM | Available |
-| Governed AI calls | `GovernedAgent` and `MappingSuggestionAgent` route every call through the Tollgate gateway; suggestions carry `requires_approval` | Available (SDK) |
-| Refinement policy | `ArtifactBranch` decides accept, refine, escalate, parallelize or stop by pass rate and cost | Available (SDK), not yet wired to agents |
-| Migration plan and validation | Plans per target and reconciliation of source against target | In development |
+| Onboarding | `cutover onboard` pergunta requisitos de negócio, segurança e destino e responde `blocked`, `needs_review` ou `ready` | Disponível (CLI) |
+| Upload e perfil | O app web perfila um CSV: linhas, tipos, células vazias, duplicatas, SHA-256 e nomes de coluna compatíveis com Delta. Nada é enviado a um LLM | Disponível |
+| Chamadas de IA governadas | `GovernedAgent` e `MappingSuggestionAgent` passam toda chamada pelo gateway do Tollgate; as sugestões saem com `requires_approval` | Disponível (SDK) |
+| Política de refinamento | `ArtifactBranch` decide aceitar, refinar, escalar, paralelizar ou parar, por pass rate e custo | Disponível (SDK), ainda não ligado aos agentes |
+| Plano de migração e validação | Planos por destino e reconciliação entre origem e destino | Em desenvolvimento |
 
-Extraction, deployment and cutover are never automatic; see the [safety boundary](#safety-boundary).
+Extração, implantação e virada nunca são automáticas; veja o [limite de segurança](#limite-de-segurança).
 
-## Try it in two minutes
+## Experimente em dois minutos
 
 ```bash
 make install
 make serve            # http://127.0.0.1:8000
 ```
 
-Create an account at `/signup`, upload a CSV in UTF-8 (up to 25 MB) and read the profile. Or use Docker: `docker compose up --build`.
+Crie uma conta em `/signup`, envie um CSV em UTF-8 (até 25 MB) e leia o perfil. Ou use Docker: `docker compose up --build`.
 
-Data lives in `CUTOVER_DATA_DIR` (SQLite plus uploads), which makes this a single-node setup: back that directory up, and set `CUTOVER_COOKIE_SECURE=1` behind HTTPS.
+Os dados ficam em `CUTOVER_DATA_DIR` (SQLite mais os uploads), o que torna esta uma instalação de nó único: faça backup desse diretório e defina `CUTOVER_COOKIE_SECURE=1` atrás de HTTPS.
 
-## Governed AI calls (powered by Tollgate)
+## Chamadas de IA governadas (com Tollgate)
 
-Cutover routes every LLM call through [Tollgate](https://github.com/juliopessan/toolgate): a complexity score picks a tier (Solar to Aurora), the Guardian admits, compresses or blocks the payload, and the outcome is recorded.
+O Cutover roteia toda chamada de LLM pelo [Tollgate](https://github.com/juliopessan/toolgate): um score de complexidade escolhe o nível (de Solar a Aurora), o Guardian admite, comprime ou bloqueia o payload, e o resultado é registrado.
 
 ```bash
-pip install "cutover-ai[governance]"      # Tollgate gate + waste ledger
-pip install "cutover-ai[deepseek]"        # optional low-cost DeepSeek provider
+pip install "cutover-ai[governance]"      # portão do Tollgate + livro-razão de desperdício
+pip install "cutover-ai[deepseek]"        # provedor DeepSeek de baixo custo (opcional)
 ```
 
 ```python
@@ -61,7 +61,7 @@ from tollgate.governance.runtime.guardian import CallEnvelope
 provider = DeepSeekProvider(pricing=DeepSeekPricing(input_per_million_usd=..., output_per_million_usd=...))
 gateway = build_gateway(GovernanceSettings(db_path=Path("~/.cutover/ledger.db").expanduser()), provider)
 
-score = 24.0  # your artifact complexity score, 0-100
+score = 24.0  # score de complexidade do seu artefato, de 0 a 100
 response = gateway.complete(CallEnvelope(
     session_id="run-1", project_id="acme", artifact_id="mapping-42",
     payload=prompt, candidate_tokens=len(prompt) // 4,
@@ -71,146 +71,151 @@ response = gateway.complete(CallEnvelope(
 ))
 ```
 
-A call with no score, an unknown tier or an exhausted budget raises `GuardianBlocked` and never reaches the provider. Tier caps live in [`dispatch.yaml`](src/cutover/governance/dispatch.yaml).
+Uma chamada sem score, com nível desconhecido ou com orçamento esgotado levanta `GuardianBlocked` e nunca chega ao provedor. Os tetos de cada nível ficam em [`dispatch.yaml`](src/cutover/governance/dispatch.yaml).
 
-[DeepSeek Harness](https://github.com/juliopessan/deepseek-harness) is a TypeScript agent runtime and is intentionally **not** vendored: Cutover talks to DeepSeek models through the API provider above. A `dsh` executor for sandboxed code generation was evaluated and deferred; see [docs/dsh-executor-evaluation.md](docs/dsh-executor-evaluation.md).
+O [DeepSeek Harness](https://github.com/juliopessan/deepseek-harness) é um runtime de agentes em TypeScript e propositalmente **não** foi embutido: o Cutover fala com os modelos da DeepSeek pelo provedor de API acima. Um executor `dsh` para geração de código em sandbox foi avaliado e adiado; veja [docs/dsh-executor-evaluation.md](docs/dsh-executor-evaluation.md).
 
-## Repository layout
-
-```text
-src/cutover/          SDK, governance bridge, refinement policy and the web app (cutover.web)
-tests/                pytest suite; fixtures/ holds Apache-2.0 seeds from Cloudera's dbt example
-config/               economics and onboarding configuration
-scripts/scenarios/    per-scenario simulators (Cloudera/Fabric, Snowflake/Databricks, Oracle, SAP legacy)
-scripts/rtk/          RTK installers
-templates/            dashboard and report templates
-docs/                 design notes and guides (see docs/README.md)
-```
-
-`make install`, `make test`, `make lint`, `make serve` and `make pipelines` cover the common tasks. For the `rtk` CLI helpers, see [RTK Integration](docs/rtk/overview.md).
-
-## Design principles
-
-- **Onboarding first:** discovery cannot start until business, technical, security, target, testing, and acceptance requirements are complete.
-- **Python owns execution:** contracts, state, validation, retries, budgets, telemetry, approvals, and integrations are implemented as testable Python components.
-- **Markdown and YAML own behavior:** prompts, questions, policies, examples, and platform configuration remain declarative and versionable.
-- **Fabric and Databricks are first-class targets:** each platform receives an independent target contract and deployment plan.
-- **Cost is a runtime constraint:** token and cost limits are enforced before model calls, not discovered on an invoice later.
-- **Quality outranks compression:** Headroom is optional and compression is accepted only when savings clear configured economic and quality gates.
-
-## Architecture
+## Estrutura do repositório
 
 ```text
-User
-  -> Proactive Onboarding Agent
-  -> Versioned MigrationIntake
-  -> Readiness Gate
-  -> Discovery and Source Plugins
-  -> Mapping and Transformation Agents
-  -> Fabric / Databricks Target Adapters
-  -> Synthetic Data and Migration Simulation
-  -> Validation and Reconciliation
-  -> Human Approval
-  -> Controlled Execution
-
-Every agent call
-  -> Redaction
-  -> Token and Cost Budget Gate
-  -> Optional Headroom Optimization
-  -> LLM Gateway
-  -> Native Telemetry
-  -> Quality Gate
+src/cutover/          SDK, ponte de governança, política de refinamento e o app web (cutover.web)
+tests/                suíte pytest; fixtures/ traz seeds Apache-2.0 do exemplo dbt da Cloudera
+config/               configuração de economia e de onboarding
+scripts/scenarios/    simuladores por cenário (Cloudera/Fabric, Snowflake/Databricks, Oracle, SAP legado)
+scripts/rtk/          instaladores do RTK
+templates/            templates de dashboard e relatório
+docs/                 notas de design e guias (veja docs/README.md)
 ```
 
-## SDK layout
+`make install`, `make test`, `make lint`, `make serve` e `make pipelines` cobrem as tarefas comuns. Para os utilitários do CLI `rtk`, veja [RTK Integration](docs/rtk/overview.md).
+
+## Princípios de design
+
+- **Onboarding primeiro:** a descoberta só começa quando os requisitos de negócio, técnicos, de segurança, de destino, de testes e de aceite estão completos.
+- **Python executa:** contratos, estado, validação, retentativas, orçamentos, telemetria, aprovações e integrações são componentes Python testáveis.
+- **Markdown e YAML definem o comportamento:** prompts, perguntas, políticas, exemplos e configuração de plataforma permanecem declarativos e versionáveis.
+- **Fabric e Databricks são destinos de primeira classe:** cada plataforma recebe um contrato de destino e um plano de implantação independentes.
+- **Custo é uma restrição de execução:** os limites de tokens e de custo são aplicados antes das chamadas ao modelo, não descobertos depois na fatura.
+- **Qualidade vale mais que compressão:** o Headroom é opcional, e a compressão só é aceita quando a economia passa nos portões econômico e de qualidade configurados.
+
+## Arquitetura
 
 ```text
-src/
-├── cutover/
-│   ├── core/             # agent contracts, runtime and plugin registry
-│   ├── contracts/        # immutable migration and target contracts
-│   ├── economics/        # token and cost budget policies
-│   ├── optimization/     # optional Headroom adapter
-│   ├── plugins/          # onboarding and future installable agents
-│   ├── targets/          # Microsoft Fabric and Databricks adapters
-│   └── telemetry/        # token, cost, latency and run events
-└── cutover/     # API, CLI and migration control-plane scaffold
+Usuário
+  -> Agente de onboarding proativo
+  -> MigrationIntake versionado
+  -> Portão de prontidão
+  -> Descoberta e plugins de origem
+  -> Agentes de mapeamento e transformação
+  -> Adaptadores de destino Fabric / Databricks
+  -> Dados sintéticos e simulação de migração
+  -> Validação e reconciliação
+  -> Aprovação humana
+  -> Execução controlada
+
+Toda chamada de agente
+  -> Redação de dados sensíveis
+  -> Portão de orçamento de tokens e custo
+  -> Otimização Headroom (opcional)
+  -> Gateway de LLM
+  -> Telemetria nativa
+  -> Portão de qualidade
 ```
 
-## Current source coverage
+## Layout do SDK
 
-The initial catalog was generated from `migration_agent_checklist.xlsx` and covers Cloudera, Airflow, SSIS, SAP BusinessObjects, Informatica PowerCenter, Snowflake, Teradata, Oracle Exadata/ADW, IBM Db2 Warehouse, and SAP BW/HANA.
+```text
+src/cutover/
+├── core/             # contratos de agente, runtime e catálogo de plugins
+├── contracts/        # contratos imutáveis de migração e de destino
+├── economics/        # políticas de orçamento de tokens e custo
+├── optimization/     # adaptador opcional do Headroom
+├── governance/       # ponte com o Tollgate e política de níveis (dispatch.yaml)
+├── providers/        # provedores de LLM (DeepSeek)
+├── refinement/       # ArtifactBranch e política de refinamento
+├── plugins/          # onboarding, mapeamento e futuros agentes instaláveis
+├── targets/          # adaptadores Microsoft Fabric e Databricks
+├── telemetry/        # eventos de tokens, custo, latência e execução
+├── validation/       # evidências e verificações determinísticas
+├── web/              # app SaaS: landing, autenticação, upload e perfil de datasets
+└── cli.py            # comando cutover (onboard, serve)
+```
 
-Connectors are being implemented incrementally behind stable source-plugin contracts.
+## Cobertura atual de origens
 
-## Target platforms
+O catálogo inicial foi gerado a partir de `migration_agent_checklist.xlsx` e cobre Cloudera, Airflow, SSIS, SAP BusinessObjects, Informatica PowerCenter, Snowflake, Teradata, Oracle Exadata/ADW, IBM Db2 Warehouse e SAP BW/HANA.
+
+Os conectores estão sendo implementados de forma incremental, atrás de contratos estáveis de plugin de origem.
+
+## Plataformas de destino
 
 ### Microsoft Fabric
 
-Target planning covers OneLake landing zones, Lakehouse or Warehouse selection, Fabric Data Factory pipelines, notebooks, SQL assets, semantic models, Purview, lineage, reconciliation, and workspace/capacity constraints.
+O planejamento do destino cobre zonas de aterrissagem no OneLake, escolha entre Lakehouse e Warehouse, pipelines do Fabric Data Factory, notebooks, ativos SQL, modelos semânticos, Purview, linhagem, reconciliação e restrições de workspace e capacidade.
 
 ### Databricks
 
-Target planning covers Unity Catalog, Delta Lake, catalogs and schemas, external locations, Lakeflow jobs and pipelines, notebooks, compute policy, lineage, access controls, and reconciliation.
+O planejamento do destino cobre Unity Catalog, Delta Lake, catálogos e esquemas, external locations, jobs e pipelines do Lakeflow, notebooks, política de computação, linhagem, controles de acesso e reconciliação.
 
-Dual-target initiatives maintain separate contracts so that Fabric and Databricks decisions do not leak into each other.
+Iniciativas com dois destinos mantêm contratos separados, para que as decisões de Fabric e de Databricks não vazem uma para a outra.
 
-## Proactive onboarding
+## Onboarding proativo
 
-The onboarding agent asks only the next relevant questions and produces one of three readiness states:
+O agente de onboarding faz apenas as próximas perguntas relevantes e produz um de três estados de prontidão:
 
-- `blocked`: mandatory, security, or residency information is unresolved.
-- `needs_review`: explicit assumptions require human approval.
-- `ready`: discovery may begin.
+- `blocked`: há informação obrigatória, de segurança ou de residência de dados sem resposta.
+- `needs_review`: há premissas explícitas que exigem aprovação humana.
+- `ready`: a descoberta pode começar.
 
-The workflow cannot continue without a selected target and an approved synthetic-data policy.
+O fluxo não avança sem um destino selecionado e uma política de dados sintéticos aprovada.
 
-## Financial governance and Headroom
+## Governança financeira e Headroom
 
-Native telemetry records token usage, estimated cost, latency, model, agent, workflow stage, source system, and target platform. Prompt content is not captured by default.
+A telemetria nativa registra uso de tokens, custo estimado, latência, modelo, agente, etapa do fluxo, sistema de origem e plataforma de destino. O conteúdo dos prompts não é capturado por padrão.
 
-Budget policies can fail closed when per-call or per-run token and cost limits are exceeded. Headroom is loaded lazily and remains optional:
+As políticas de orçamento podem falhar de forma fechada quando os limites de tokens e de custo, por chamada ou por execução, são excedidos. O Headroom é carregado sob demanda e continua opcional:
 
 ```bash
 pip install -e ".[headroom]"
 ```
 
-Compression is used only when measured savings exceed the configured threshold. A holdout group and reconciliation gates protect quality, while the original context remains the fallback.
+A compressão só é usada quando a economia medida passa do limite configurado. Um grupo de controle e portões de reconciliação protegem a qualidade, e o contexto original continua como fallback.
 
-## Local development
+## Desenvolvimento local
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 python -m pip install --upgrade pip
-pip install -e ".[dev,governance]"
+pip install -e ".[dev,governance,scenarios]"
 
-ruff check .
-mypy src
+ruff check src/cutover tests
 pytest -q
 python -m build
 ```
 
-Run the existing control plane:
+Avalie as respostas de um onboarding:
 
 ```bash
 cutover onboard --answers answers.json
 ```
 
-## CI quality gates
+## Portões de qualidade no CI
 
-GitHub Actions validates Python 3.11 and 3.12 with:
+O GitHub Actions valida Python 3.11 e 3.12 com:
 
-- Ruff linting and import checks;
-- strict mypy type checking;
-- pytest unit tests;
-- source and wheel builds;
-- clean wheel installation and import smoke tests.
+- Ruff em `src/cutover` e `tests`;
+- mypy nos contratos estáveis do SDK (`intake`, `events`, `budget` e `cli`);
+- testes unitários com pytest;
+- build de sdist e wheel;
+- instalação limpa do wheel com teste de importação.
 
-## Safety boundary
+Um segundo workflow (`generate-report.yml`) executa os cenários de Cloudera/Fabric e Snowflake/Databricks e publica o relatório HTML como artefato.
 
-The repository currently provides a safe control plane for onboarding, discovery planning, mappings, synthetic test data, target planning, telemetry, and validation evidence. Production extraction, deployment, and cutover require explicit credentials, network configuration, policy approval, and human authorization.
+## Limite de segurança
 
-## Roadmap
+O repositório entrega hoje um plano de controle seguro para onboarding, planejamento de descoberta, mapeamentos, dados sintéticos de teste, planejamento de destino, telemetria e evidências de validação. Extração, implantação e virada em produção exigem credenciais, configuração de rede, aprovação de política e autorização humana explícitas.
 
-Near-term work includes the workflow state machine, OpenTelemetry exporters, source connector contracts, Snowflake and Oracle discovery, deeper Fabric and Databricks planners, secrets redaction middleware, synthetic data integration, and migration-cost dashboards.
+## Roteiro
+
+O trabalho de curto prazo inclui a máquina de estados do fluxo, exportadores OpenTelemetry, contratos de conectores de origem, descoberta de Snowflake e Oracle, planejadores mais profundos para Fabric e Databricks, middleware de redação de segredos, integração de dados sintéticos e dashboards de custo de migração.
