@@ -1,4 +1,4 @@
-.PHONY: install test lint serve pipelines
+.PHONY: install test lint serve pipelines benchmark
 
 PY := .venv/bin/python
 
@@ -18,3 +18,6 @@ serve:
 pipelines:
 	$(PY) scripts/scenarios/cloudera_fabric/run_cloudera_fabric_pipeline.py
 	$(PY) scripts/scenarios/snowflake_databricks/run_snowflake_databricks_pipeline.py
+
+benchmark:
+	$(PY) scripts/benchmarks/profile_benchmark.py

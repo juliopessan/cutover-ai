@@ -23,6 +23,10 @@ EXPECTED = {
         "country": "text", "alpha_2code": "text", "alpha_3code": "text", "numeric_code": "integer",
         "latitude_avg": "decimal", "longitude_avg": "decimal"}),
     "ref__populations.csv": (266, {"country_code": "text", "population": "integer"}),
+    "raw_covid__vaccines.csv": (3740, {
+        "year_week_iso": "text", "reporting_country": "text", "num_doses_recv": "integer",
+        "num_doses_exported": "integer", "first_dose": "integer", "first_dose_refused": "integer",
+        "second_dose": "integer", "unknown_dose": "integer", "target_group": "text", "vaccine": "text"}),
 }
 
 
