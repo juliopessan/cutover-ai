@@ -1,22 +1,27 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import os
+import queue
 import re
 import sqlite3
+import threading
 import uuid
 from pathlib import Path
+from collections.abc import Callable
 from typing import Any
 from urllib.parse import urlparse
 
 from fastapi import FastAPI, File, Form, Request, UploadFile
-from fastapi.responses import FileResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from cutover.governance.bridge import load_dispatch_tiers
 from cutover.web import auth
 from cutover.web.db import Database
+from cutover.web.live import SESSION_BUDGET_USD, run_mapping_stream
 from cutover.web.profiling import ProfileError, profile_csv
 
 HERE = Path(__file__).parent
@@ -27,10 +32,24 @@ TARGETS = {"microsoft_fabric": "Microsoft Fabric", "databricks": "Databricks"}
 EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
-def create_app(data_dir: Path | None = None) -> FastAPI:
+def create_app(
+    data_dir: Path | None = None,
+    provider_factory: Callable[[], Any] | None = None,
+    pricing: Any | None = None,
+) -> FastAPI:
     data_dir = Path(data_dir or os.environ.get("CUTOVER_DATA_DIR", "./cutover-data")).resolve()
     secure_cookie = os.environ.get("CUTOVER_COOKIE_SECURE", "0") == "1"
     db = Database(data_dir / "cutover.db")
+    live_max_runs = int(os.environ.get("CUTOVER_LIVE_MAX_RUNS_PER_DAY", "10"))
+
+    def live_ready() -> bool:
+        return provider_factory is not None or bool(os.environ.get("DEEPSEEK_API_KEY"))
+
+    def make_provider() -> tuple[Any, Any]:
+        from cutover.providers.deepseek import DeepSeekPricing, DeepSeekProvider
+
+        price = pricing or DeepSeekPricing.from_env()
+        return (provider_factory() if provider_factory else DeepSeekProvider(pricing=price)), price
     throttle = auth.LoginThrottle()
     templates = Jinja2Templates(directory=str(HERE / "templates"))
     templates.env.filters["br_int"] = lambda n: f"{n:,}".replace(",", ".")
@@ -238,5 +257,69 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         profile = json.loads(row["profile_json"])
         return render(request, "dataset.html", dataset=dict(row), profile=profile,
                       target_label=TARGETS.get(row["target"], row["target"]))
+
+    # ---- live governed run -----------------------------------------------------
+
+    def runs_today(user_id: int) -> int:
+        with db.connect() as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) AS n FROM live_runs WHERE user_id = ? AND created_at >= datetime('now', '-1 day')",
+                (user_id,)).fetchone()
+        return int(row["n"])
+
+    @app.get("/app/datasets/{dataset_id}/mapping")
+    def mapping_page(request: Request, dataset_id: int) -> Response:
+        user = current_user(request)
+        if not user:
+            return RedirectResponse("/login", status_code=303)
+        with db.connect() as conn:
+            row = conn.execute("SELECT id, filename, target FROM datasets WHERE id = ? AND user_id = ?",
+                               (dataset_id, user["id"])).fetchone()
+        if not row:
+            return render(request, "notfound.html", 404)
+        return render(request, "mapping.html", dataset=dict(row), target_label=TARGETS.get(row["target"]),
+                      ready=live_ready(), runs_left=max(0, live_max_runs - runs_today(user["id"])),
+                      model=os.environ.get("DEEPSEEK_MODEL", "deepseek-flash"), budget=SESSION_BUDGET_USD)
+
+    @app.post("/app/datasets/{dataset_id}/mapping/run")
+    async def mapping_run(request: Request, dataset_id: int) -> Response:
+        user = current_user(request)
+        if not user:
+            return RedirectResponse("/login", status_code=303)
+        with db.connect() as conn:
+            row = conn.execute("SELECT * FROM datasets WHERE id = ? AND user_id = ?",
+                               (dataset_id, user["id"])).fetchone()
+        if not row:
+            return Response("Dataset não encontrado.", status_code=404)
+        if not live_ready():
+            return Response("Chave da DeepSeek não configurada.", status_code=503)
+        if runs_today(user["id"]) >= live_max_runs:
+            return Response("Limite diário de execuções atingido.", status_code=429)
+        with db.connect() as conn:
+            conn.execute("INSERT INTO live_runs(user_id, dataset_id) VALUES (?, ?)", (user["id"], dataset_id))
+
+        events: queue.Queue[dict[str, Any] | None] = queue.Queue()
+
+        def worker() -> None:
+            try:
+                provider, price = make_provider()
+                run_mapping_stream(
+                    profile=json.loads(row["profile_json"]), target=row["target"], dataset_id=dataset_id,
+                    db_path=data_dir / "ledger.db", provider=provider, pricing=price,
+                    model=os.environ.get("DEEPSEEK_MODEL", "deepseek-flash"), emit=events.put)
+            except Exception as exc:  # setup failures (missing prices, bad key) still reach the screen
+                events.put({"type": "error", "message": f"{type(exc).__name__}: {exc}", "t_ms": 0})
+                events.put({"type": "done", "t_ms": 0})
+            finally:
+                events.put(None)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+        async def stream() -> Any:
+            while (event := await asyncio.to_thread(events.get)) is not None:
+                yield json.dumps(event, ensure_ascii=False) + "\n"
+
+        return StreamingResponse(stream(), media_type="application/x-ndjson",
+                                 headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
 
     return app

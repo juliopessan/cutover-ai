@@ -10,7 +10,7 @@ PY := .venv/bin/python
 
 install:
 	python3 -m venv .venv
-	.venv/bin/pip install -e ".[dev,governance,scenarios]"
+	.venv/bin/pip install -e ".[dev,governance,scenarios,deepseek]"
 
 test:
 	.venv/bin/pytest -q

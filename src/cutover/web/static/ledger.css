@@ -25,6 +25,7 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--paper); color: var(--ink-soft);
   font-family: var(--display); font-size: 14.5px; line-height: 1.65; }
@@ -136,6 +137,27 @@ td.name { font-family: var(--mono); font-size: 12.5px; color: var(--ink); }
 .stat { display: flex; flex-direction: column; gap: 6px; padding-top: 16px; border-top: 1px solid var(--rule); }
 .stat b { font-size: 34px; font-weight: 700; letter-spacing: -0.025em; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1.1; }
 .stat span { font-family: var(--mono); font-size: 11.5px; color: var(--ink-faint); }
+
+/* live run */
+.steps-live { display: flex; flex-direction: column; max-height: 560px; overflow-y: auto; }
+.steps-live .idle { color: var(--ledger-dim); font-family: var(--mono); font-size: 12.5px; padding-top: 18px; border-top: 1px solid var(--ledger-rule); }
+.step { display: grid; grid-template-columns: 10px 64px 1fr; gap: 12px; padding: 14px 0; border-top: 1px solid var(--ledger-rule); align-items: baseline; }
+.step .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ledger-dim); align-self: center; }
+.step.ok .dot { background: var(--ledger-mint); }
+.step.bad .dot { background: var(--clay); }
+.step .when { font-family: var(--mono); font-size: 11.5px; color: var(--ledger-dim); font-variant-numeric: tabular-nums; }
+.step .what { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.step .what b { font-weight: 600; font-size: 14px; color: var(--ledger-ink); }
+.step .what span { font-family: var(--mono); font-size: 12px; color: var(--ledger-dim); overflow-wrap: anywhere; }
+.step.bad .what b { color: var(--clay); }
+.step.wait .dot { animation: pulse 1s ease-in-out infinite; }
+.step details { margin-top: 6px; }
+.step summary { cursor: pointer; font-family: var(--mono); font-size: 11.5px; color: var(--ledger-dim); }
+.step pre { margin: 8px 0 0; padding: 12px; background: var(--ledger-rule); color: var(--ledger-ink); font: 12px/1.5 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.ledger-head .live.running::before { animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .step.wait .dot, .ledger-head .live.running::before { animation: none; } }
+button.btn:disabled { opacity: .45; cursor: not-allowed; }
 
 /* auth + app */
 .auth { max-width: 420px; margin: 0 auto; padding: 72px 0 96px; }

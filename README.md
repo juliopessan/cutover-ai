@@ -29,6 +29,7 @@ O Cutover está em alfa. Abaixo, o que já dá para usar e o que ainda está sen
 | Onboarding | `cutover onboard` pergunta requisitos de negócio, segurança e destino e responde `blocked`, `needs_review` ou `ready` | Disponível (CLI) |
 | Upload e perfil | O app web perfila um CSV: linhas, tipos, células vazias, duplicatas, SHA-256 e nomes de coluna compatíveis com Delta. Nada é enviado a um LLM | Disponível |
 | Chamadas de IA governadas | `GovernedAgent` e `MappingSuggestionAgent` passam toda chamada pelo gateway do Tollgate; as sugestões saem com `requires_approval` | Disponível (SDK) |
+| Mapeamento ao vivo | No app, “Sugerir mapeamento com IA” roda uma chamada governada e mostra cada etapa em tempo real: score, nível, portão, chamada, tokens, custo e verificações determinísticas. Só nomes e tipos de colunas vão ao modelo | Disponível (web) |
 | Política de refinamento | `ArtifactBranch` decide aceitar, refinar, escalar, paralelizar ou parar, por pass rate e custo | Disponível (SDK), ainda não ligado aos agentes |
 | Plano de migração e validação | Planos por destino e reconciliação entre origem e destino | Em desenvolvimento |
 
@@ -42,6 +43,8 @@ make serve            # http://127.0.0.1:8000
 ```
 
 Crie uma conta em `/signup`, envie um CSV em UTF-8 (até 25 MB) e leia o perfil. Ou use Docker: `docker compose up --build`.
+
+A execução ao vivo gasta a sua chave da DeepSeek, então limita cada usuário a `CUTOVER_LIVE_MAX_RUNS_PER_DAY` execuções por dia (padrão 10), com teto de US$ 0,05 por execução.
 
 Os dados ficam em `CUTOVER_DATA_DIR` (SQLite mais os uploads), o que torna esta uma instalação de nó único: faça backup desse diretório e defina `CUTOVER_COOKIE_SECURE=1` atrás de HTTPS.
 

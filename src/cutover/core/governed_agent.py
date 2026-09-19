@@ -7,7 +7,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from cutover.core.agent import AgentContext, AgentResult, MigrationAgent
-from cutover.governance.bridge import tier_for_score
+from cutover.governance.bridge import tier_for_score, tier_output_cap
 from cutover.telemetry.events import CostEstimate, TelemetryEvent, TokenUsage
 from cutover.telemetry.sink import NullTelemetrySink, TelemetrySink
 
@@ -32,6 +32,7 @@ class GovernedAgent(MigrationAgent):
         session_budget_usd: float | None = None,
         artifact_budget_usd: float | None = None,
         telemetry: TelemetrySink | None = None,
+        pricing: Any | None = None,
     ) -> None:
         self.gateway = gateway
         self.provider = provider or self.provider
@@ -39,6 +40,7 @@ class GovernedAgent(MigrationAgent):
         self.session_budget_usd = session_budget_usd
         self.artifact_budget_usd = artifact_budget_usd
         self.telemetry = telemetry or NullTelemetrySink()
+        self.pricing = pricing  # needs input_per_million_usd and output_per_million_usd
 
     @abstractmethod
     def build_prompt(self, payload: Mapping[str, Any]) -> str: ...
@@ -46,9 +48,17 @@ class GovernedAgent(MigrationAgent):
     @abstractmethod
     def interpret(self, content: str) -> Mapping[str, Any]: ...
 
-    def estimate_cost_usd(self, candidate_tokens: int) -> float:
-        """Conservative pre-call estimate. Override with real pricing for tighter budgets."""
-        return round(candidate_tokens / 1_000_000 * 1.0, 8)
+    def estimate_cost_usd(self, candidate_tokens: int, output_cap: int = 0) -> float:
+        """Worst-case pre-call estimate: full input plus the whole output cap.
+
+        With ``pricing`` set it uses the real per-million prices; otherwise a US$1 per million
+        placeholder. The output cap is also sent as ``max_tokens``, so the bound holds.
+        """
+        if self.pricing is None:
+            return round(candidate_tokens / 1_000_000 * 1.0, 8)
+        return round(
+            candidate_tokens / 1_000_000 * self.pricing.input_per_million_usd
+            + output_cap / 1_000_000 * self.pricing.output_per_million_usd, 8)
 
     async def execute(self, context: AgentContext, payload: Mapping[str, Any]) -> AgentResult:
         from tollgate.context.tokens import estimate_tokens
@@ -64,6 +74,8 @@ class GovernedAgent(MigrationAgent):
         prompt = self.build_prompt(payload)
         candidate_tokens = estimate_tokens(prompt)
         try:
+            tier = tier_for_score(float(score))
+            output_cap = tier_output_cap(tier)
             envelope = CallEnvelope(
                 session_id=context.run_id,
                 project_id=str(payload.get("project_id", self.name)),
@@ -71,14 +83,14 @@ class GovernedAgent(MigrationAgent):
                 payload=prompt,
                 candidate_tokens=candidate_tokens,
                 complexity_score=float(score),
-                tier=tier_for_score(float(score)),
+                tier=tier,
                 provider=self.provider,
                 model=self.model,
-                estimated_cost_usd=self.estimate_cost_usd(candidate_tokens),
+                estimated_cost_usd=self.estimate_cost_usd(candidate_tokens, output_cap),
                 artifact_budget_usd=self.artifact_budget_usd,
                 session_budget_usd=self.session_budget_usd,
             )
-            response = await asyncio.to_thread(self.gateway.complete, envelope)
+            response = await asyncio.to_thread(self.gateway.complete, envelope, max_tokens=output_cap)
         except (GuardianBlocked, ValueError) as exc:
             self.telemetry.emit(
                 TelemetryEvent(

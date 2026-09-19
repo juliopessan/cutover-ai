@@ -45,11 +45,71 @@ def tier_for_score(score: float, policy_path: Path = DEFAULT_DISPATCH_POLICY) ->
     raise ValueError(f"complexity score {score} is outside every tier range")
 
 
+def tier_output_cap(tier_id: str, policy_path: Path = DEFAULT_DISPATCH_POLICY) -> int:
+    """Output-token cap of a tier, used as the provider's hard max_tokens."""
+    for tier in load_dispatch_tiers(policy_path):
+        if tier["id"] == tier_id:
+            return int(tier["output_token_cap"])
+    raise ValueError(f"unknown tier {tier_id!r}")
+
+
+class _EventingGuardian:
+    """Delegates to a Tollgate Guardian and reports each gate decision to ``emit``."""
+
+    def __init__(self, guardian: Any, emit: Callable[[dict[str, Any]], None]) -> None:
+        self._guardian = guardian
+        self._emit = emit
+
+    def enforce(self, envelope: Any) -> Any:
+        from tollgate.governance.runtime.guardian import GuardianBlocked
+
+        try:
+            result = self._guardian.enforce(envelope)
+        except GuardianBlocked as exc:
+            self._emit({"type": "gate.blocked", "reason": str(exc)})
+            raise
+        self._emit({
+            "type": "gate.admitted", "decision": result.decision,
+            "admitted_tokens": result.admitted_tokens, "rejected_tokens": result.rejected_tokens,
+        })
+        return result
+
+    def record_completion(self, result: Any, actual_cost_usd: float, output_tokens: int, quality_status: str) -> None:
+        self._guardian.record_completion(result, actual_cost_usd, output_tokens, quality_status)
+        self._emit({"type": "gate.audited", "output_tokens": output_tokens, "actual_cost_usd": actual_cost_usd})
+
+
+class _EventingClient:
+    """Delegates to a provider client and reports the call and its measured usage."""
+
+    def __init__(self, client: Any, emit: Callable[[dict[str, Any]], None]) -> None:
+        self._client = client
+        self._emit = emit
+
+    def complete(self, *, model: str, payload: str, **kwargs: Any) -> Any:
+        import time
+
+        self._emit({"type": "provider.call", "model": model, "max_tokens": kwargs.get("max_tokens")})
+        started = time.perf_counter()
+        try:
+            response = self._client.complete(model=model, payload=payload, **kwargs)
+        except Exception as exc:
+            self._emit({"type": "provider.error", "message": f"{type(exc).__name__}: {exc}"})
+            raise
+        self._emit({
+            "type": "provider.response", "input_tokens": response.input_tokens,
+            "output_tokens": response.output_tokens, "cost_usd": response.cost_usd,
+            "latency_ms": round((time.perf_counter() - started) * 1000),
+        })
+        return response
+
+
 def build_gateway(
     settings: GovernanceSettings,
     client: Any,
     token_counter: Callable[[str], int] | None = None,
     compressor: Any | None = None,
+    on_event: Callable[[dict[str, Any]], None] | None = None,
 ) -> Any:
     """Build a Tollgate GuardedProviderGateway around any provider client.
 
@@ -73,4 +133,7 @@ def build_gateway(
         token_counter or estimate_tokens,
         compressor or ContextCompressor(),
     )
+    if on_event is not None:
+        guardian = _EventingGuardian(guardian, on_event)
+        client = _EventingClient(client, on_event)
     return GuardedProviderGateway(guardian, BudgetReservations(settings.db_path), client)
