@@ -58,6 +58,15 @@ make benchmark
 
 São medianas de uma única máquina, sobre dados sintéticos e públicos. Servem como evidência de correção e de ordem de grandeza, não como garantia de desempenho em produção.
 
+## Relatório executivo AI-IS
+
+O Cutover trata o **AI-IS** como assessment do estado atual (AS-IS) dos dados feito com IA, entregue sem migrar de plataforma. O relatório executivo (`/relatorio`, no formato de relatório enterprise em A4) reúne resumo executivo, decisão pedida ao patrocinador, resultados medidos, análise dos dados, esforço, ROI com simulador editável, riscos e recomendação. Tudo que é medido vem de execuções reproduzíveis; premissas aparecem sinalizadas. Uma versão em PDF fica em [`docs/reports/relatorio-executivo-ai-is.pdf`](docs/reports/relatorio-executivo-ai-is.pdf).
+
+```bash
+make benchmark        # perfilamento determinístico (sem IA)
+make llm-benchmark    # 15 chamadas reais à DeepSeek (frações de centavo)
+```
+
 ## Chamadas de IA governadas (com Tollgate)
 
 O Cutover roteia toda chamada de LLM pelo [Tollgate](https://github.com/juliopessan/toolgate): um score de complexidade escolhe o nível (de Solar a Aurora), o Guardian admite, comprime ou bloqueia o payload, e o resultado é registrado.

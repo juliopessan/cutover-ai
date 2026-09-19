@@ -64,6 +64,9 @@ table.r input { font: 600 12.5px var(--mono); width: 100%; max-width: 120px; pad
   .dark { -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 22px 0; }
   table.r th, .flow, .flag, .tick, .bar-fill { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   table.r, .flag, .flow { break-inside: avoid; }
+  .dark table.r { break-inside: auto; }
+  table.r tr { break-inside: avoid; }
+  h3, h4, h5 { break-after: avoid; }
   .sec { padding-top: 0; }
   table.r input { border: 0; padding: 0; max-width: none; }
 }
