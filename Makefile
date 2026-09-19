@@ -4,7 +4,7 @@ include .env
 export
 endif
 
-.PHONY: install test lint serve pipelines benchmark
+.PHONY: install test lint serve pipelines benchmark llm-benchmark
 
 PY := .venv/bin/python
 
@@ -27,3 +27,6 @@ pipelines:
 
 benchmark:
 	$(PY) scripts/benchmarks/profile_benchmark.py
+
+llm-benchmark:
+	$(PY) scripts/benchmarks/llm_benchmark.py

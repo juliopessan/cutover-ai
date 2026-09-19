@@ -152,3 +152,22 @@ def test_favicon_is_served_for_every_page(client):
         page = client.get(url).text
         assert 'href="/static/favicon.svg"' in page and 'rel="apple-touch-icon"' in page
     assert client.get("/static/site.webmanifest").status_code == 200
+
+
+def test_roi_model_matches_hand_calculation():
+    from cutover.web.report import ASSUMPTIONS, roi
+
+    a = {k: v["value"] for k, v in ASSUMPTIONS.items()}
+    out = roi(a, ai_cost_per_dataset_usd=0.0)
+    assert out["manual_cost"] == 6000 and out["assisted_cost"] == 800 and out["saving"] == 5200
+    assert out["hours_saved"] == 87.5 and out["roi_year_one"] == pytest.approx((5200 * 4 - 2400) / 2400)
+    worse = roi({**a, "review_hours": 2.0}, 0.0)  # review as slow as doing it by hand: no saving, no payback
+    assert worse["saving"] < 0 and worse["payback_assessments"] == float("inf")
+
+
+def test_report_page_separates_measured_from_assumed(client):
+    page = client.get("/relatorio")
+    assert page.status_code == 200
+    assert "Premissas não verificadas" in page.text and "Decisão pedida ao patrocinador" in page.text
+    assert page.text.count("Handoff") == 7 and "Estimativa não verificada" in page.text
+    assert 'src="/static/report.js"' in page.text

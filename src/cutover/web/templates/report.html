@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cutover AI-IS: relatório executivo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter+Tight:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/ledger.css">
+<link rel="stylesheet" href="/static/report.css">
+</head>
+<body class="report-body">
+{% if not llm %}
+<div class="doc"><section class="sec"><p class="eyebrow">Relatório indisponível</p>
+  <div class="flag"><span class="flag-k">Sem medições</span><p>Rode <code>make llm-benchmark</code>, <code>make benchmark</code> e <code>python scripts/benchmarks/project_stats.py</code> para gerar os dados deste relatório.</p></div></section></div>
+{% else %}
+{% set t = llm.totals %}
+<div class="toolbar print-hide"><a href="/">← Cutover</a><a href="javascript:window.print()">Imprimir ou salvar em PDF</a></div>
+<div class="doc">
+
+<!-- Capa -->
+<header class="rhead"><span class="brand"><img src="/static/favicon.svg" alt="">Cutover</span><span class="tag">Relatório executivo / V1</span></header>
+<section class="cover">
+  <p class="eyebrow" style="margin-top: 26px">Relatório consolidado de assessment AI-IS</p>
+  <h1>Assessment AS-IS com IA, sem migrar de plataforma</h1>
+  <p class="lede">Determinar se a IA pode reduzir de forma material o esforço manual do levantamento do estado atual dos dados (perfilamento e sugestão de mapeamento) sem aumentar o risco operacional ou de segurança e sem migrar de plataforma. Expectativa inicial de ganho: não definida; o ROI depende de premissas ainda não medidas.</p>
+  <p class="gen">Cada número marcado como medido vem de uma execução reproduzível (<code>make benchmark</code>, <code>make llm-benchmark</code>). O que é premissa ou julgamento aparece marcado como tal.</p>
+  <dl class="meta">
+    <div><dt>Base de dados</dt><dd>{{ llm.method.datasets }} datasets públicos e sintéticos (exemplo dbt da Cloudera)</dd></div>
+    <div><dt>Modelo</dt><dd>{{ llm.model }}</dd></div>
+    <div><dt>Escopo</dt><dd>Perfilamento e sugestão de mapeamento (AS-IS)</dd></div>
+    <div><dt>Gerado em</dt><dd>{{ llm.generated_at }}</dd></div>
+    <div><dt>Commit</dt><dd class="mono">{{ llm.git_commit }}{% if llm.git_dirty %} (com alterações){% endif %}</dd></div>
+    <div><dt>Seções</dt><dd>7</dd></div>
+  </dl>
+</section>
+
+<!-- Resumo executivo -->
+<section class="dark">
+  <p class="eyebrow">Resumo executivo</p>
+  <h2 style="font-size: 26px; letter-spacing: -0.02em; margin-bottom: 16px">Resumo executivo: AI-IS sem migração de plataforma</h2>
+  <p>Foi solicitada uma avaliação técnica e econômica para determinar se a IA pode reduzir o esforço manual do assessment AS-IS de dados sem elevar o risco, respeitando uma restrição crítica: <b>nenhuma linha de dados é enviada ao modelo e nenhuma sugestão é aplicada sem aprovação humana</b>. Foram executadas {{ t.runs }} chamadas reais a um modelo de linguagem sobre {{ llm.method.datasets }} datasets, com {{ llm.method.repetitions }} repetições cada.</p>
+  <p>A investigação indica <b>GO CONDICIONAL para um piloto</b>. A viabilidade técnica está demonstrada ({{ t.successful }} de {{ t.runs }} chamadas concluídas, {{ t.runs_with_all_checks_passed }} com todas as verificações aprovadas) e o custo do modelo é desprezível (<b>US$ {{ t.cost_usd_mean | br_dec(6) }}</b> por dataset). Porém o <b>ganho econômico sobre um time de dados e engenharia ainda não está provado</b>: nenhuma hora humana foi cronometrada.</p>
+  <h3 style="font-size: 15px; margin: 22px 0 10px">Principais achados técnicos</h3>
+  <ul>
+    <li><b>Viável e barato:</b> custo total de US$ {{ t.cost_usd_total | br_dec(4) }} para {{ t.runs }} chamadas; {{ t.input_tokens_total | br_int }} tokens de entrada e {{ t.output_tokens_total | br_int }} de saída, medidos pelo provedor.</li>
+    <li><b>Velocidade com cauda longa:</b> mediana de {{ (t.latency_ms_median / 1000) | br_dec(1) }} s, p95 de {{ (t.latency_ms_p95 / 1000) | br_dec(1) }} s e máximo de {{ (t.latency_ms_max / 1000) | br_dec(1) }} s. O pior caso custou {{ cost_tail | br_dec(1) }}× a média.</li>
+    <li><b>Não determinístico:</b> {{ t.columns_total - t.columns_stable_across_reps }} de {{ t.columns_total }} colunas mudaram de destino ou tipo entre repetições. Toda sugestão exige aprovação humana.</li>
+    <li><b>Governança de custo:</b> cada chamada passa por score, nível, teto de tokens, orçamento e auditoria em livro-razão (Tollgate).</li>
+    <li><b>Perfilamento determinístico:</b> {{ profile.totals.rows | br_int if profile else '—' }} linhas perfiladas, hash SHA-256 conferido em {{ profile.totals.sha256_confirmed_on_page if profile else '—' }} arquivos e {{ profile.detection.defects_detected if profile else '—' }} de {{ profile.detection.defects_injected if profile else '—' }} defeitos injetados detectados.</li>
+  </ul>
+  <h3 style="font-size: 15px; margin: 22px 0 10px">Decisão pedida ao patrocinador</h3>
+  <p>Pede-se a aprovação de duas ações imediatas:</p>
+  <ol>
+    <li><b>Autorizar o piloto AI-IS</b> (estimativa de {{ wbs_total | br_dec(0) }} horas, cerca de {{ wbs_weeks | br_dec(1) }} semanas para uma pessoa a 25 h/semana): rodar o AI-IS em 5 datasets reais e cronometrar o assessment manual nos mesmos datasets.</li>
+    <li><b>Comprometer os pré-requisitos:</b> liberar uma amostra de datasets sob acordo de confidencialidade, alocar 1 a 2 analistas para o baseline manual e disponibilizar um ambiente com HTTPS.</li>
+  </ol>
+  <hr>
+  <h3 style="font-size: 18px; margin-bottom: 10px">Visão geral das seções</h3>
+  <table class="r">
+    <thead><tr><th>Seção</th><th>Fonte da evidência</th><th>Veredito</th><th>Nível de evidência</th></tr></thead>
+    <tbody>
+      <tr><td><b>Escopo e qualificação</b></td><td>Este repositório</td><td><b>ATENDIDO</b> (escopo AS-IS bem delimitado)</td><td>Documental</td></tr>
+      <tr><td><b>Resultados medidos</b></td><td><code>make benchmark</code>, <code>make llm-benchmark</code></td><td><b>GO</b> ({{ t.runs_with_all_checks_passed }}/{{ t.successful }} verificações)</td><td>Medido</td></tr>
+      <tr><td><b>Análise dos dados</b></td><td><code>llm.json</code></td><td><b>ATENÇÃO</b> (instabilidade entre repetições)</td><td>Medido</td></tr>
+      <tr><td><b>Esforço e capacidade</b></td><td>git, suíte de testes</td><td><b>INFORMATIVO</b> (tempo humano não medido)</td><td>Parcial</td></tr>
+      <tr><td><b>Economia e ROI</b></td><td>Premissas ilustrativas</td><td><b>NÃO PROVADO</b></td><td>Premissa</td></tr>
+      <tr><td><b>Riscos e pré-condições</b></td><td>Análise</td><td><b>GERENCIÁVEL</b> com o piloto</td><td>Julgamento</td></tr>
+      <tr><td><b>Recomendação</b></td><td>Seções anteriores</td><td><b>GO CONDICIONAL</b></td><td>Julgamento</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <p class="eyebrow">Conteúdo do relatório</p>
+  <ol class="toc">
+    <li><span class="n">01</span><span>Escopo e qualificação</span><span class="who">O que o AI-IS cobre</span></li>
+    <li><span class="n">02</span><span>Resultados medidos</span><span class="who">Perfilamento e sugestão</span></li>
+    <li><span class="n">03</span><span>Análise dos dados</span><span class="who">Divergências e estabilidade</span></li>
+    <li><span class="n">04</span><span>Esforço e capacidade</span><span class="who">Construção e piloto</span></li>
+    <li><span class="n">05</span><span>Economia e ROI</span><span class="who">Time versus IA</span></li>
+    <li><span class="n">06</span><span>Riscos e pré-condições</span><span class="who">O que pode invalidar</span></li>
+    <li><span class="n">07</span><span>Recomendação e decisão</span><span class="who">Próximos passos</span></li>
+  </ol>
+</section>
+
+<!-- 01 -->
+<section class="sec">
+  <div class="sec-head"><span class="n">01</span><p class="eyebrow">Escopo</p><h2>Escopo e qualificação</h2></div>
+  <h3 class="title">Relatório de qualificação: o que o AI-IS cobre e o que deixa de fora</h3>
+  <p>AI-IS é o assessment do estado atual (AS-IS) dos dados feito com IA e entregue <b>sem migrar de plataforma</b>. O valor está em levantar, documentar e sugerir mapeamentos com evidência, sem o custo e o risco de uma migração. Migração, validação e reconciliação ficam fora do escopo.</p>
+  <hr>
+  <h4>1. Matriz de aderência e evidência</h4>
+  <table class="r">
+    <thead><tr><th>Critério</th><th>Peso</th><th>Resultado</th><th>Rastreabilidade e evidência</th><th>Justificativa</th></tr></thead>
+    <tbody>
+      <tr><td class="k">1. Viabilidade técnica</td><td>Alto</td><td class="k">Atendido</td><td>{{ t.successful }}/{{ t.runs }} chamadas reais; {{ t.runs_with_all_checks_passed }} com 5/5 verificações (<code>llm.json</code>)</td><td>O fluxo completo funciona ponta a ponta sob portão de custo.</td></tr>
+      <tr><td class="k">2. Custo de IA</td><td>Alto</td><td class="k">Atendido</td><td>US$ {{ t.cost_usd_total | br_dec(4) }} no total; média de US$ {{ t.cost_usd_mean | br_dec(6) }} por dataset</td><td>Custo desprezível; o gargalo passa a ser a revisão humana.</td></tr>
+      <tr><td class="k">3. Reprodutibilidade</td><td>Alto</td><td class="k">Parcial</td><td>{{ t.columns_stable_across_reps }}/{{ t.columns_total }} colunas estáveis entre repetições</td><td>Sugestões variam; a aprovação humana é obrigatória.</td></tr>
+      <tr><td class="k">4. Segurança de dados</td><td>Alto</td><td class="k">Parcial</td><td>Payload de teste: só nomes e tipos de colunas; sem linhas de dados</td><td>Não testado com dados sensíveis; nomes de coluna também podem ser sensíveis.</td></tr>
+      <tr><td class="k">5. Dor mensurável</td><td>Alto</td><td class="k">Não provado</td><td>Nenhum baseline manual cronometrado</td><td>Sem baseline não há como afirmar o ganho sobre um time.</td></tr>
+      <tr><td class="k">6. Maturidade do produto</td><td>Médio</td><td class="k">Parcial</td><td>Perfilamento e sugestão disponíveis; relatório consolidado por cliente em desenvolvimento</td><td>Cobre o núcleo do assessment, não o entregável final.</td></tr>
+    </tbody>
+  </table>
+  <hr>
+  <h4>2. Fluxo do assessment AI-IS</h4>
+  <div class="flow">
+    <svg viewBox="0 0 640 96" role="img" aria-label="Fluxo: dataset, perfil determinístico, sugestão sob portão, verificações, aprovação humana, relatório AS-IS">
+      <g>
+        <rect class="box" x="4" y="28" width="86" height="40"/><text x="47" y="52" text-anchor="middle">Dataset</text>
+        <rect class="box" x="112" y="28" width="98" height="40"/><text x="161" y="45" text-anchor="middle">Perfil</text><text x="161" y="59" text-anchor="middle">determinístico</text>
+        <rect class="box" x="232" y="28" width="98" height="40"/><text x="281" y="45" text-anchor="middle">Sugestão sob</text><text x="281" y="59" text-anchor="middle">portão de custo</text>
+        <rect class="box" x="352" y="28" width="98" height="40"/><text x="401" y="45" text-anchor="middle">Verificações</text><text x="401" y="59" text-anchor="middle">determinísticas</text>
+        <rect class="box" x="472" y="28" width="86" height="40"/><text x="515" y="45" text-anchor="middle">Aprovação</text><text x="515" y="59" text-anchor="middle">humana</text>
+        <rect class="box go" x="580" y="28" width="58" height="40"/><text x="609" y="52" text-anchor="middle">AS-IS</text>
+        <path class="arrow" d="M90 48H112M210 48H232M330 48H352M450 48H472M558 48H580"/>
+      </g>
+    </svg>
+  </div>
+  <h4>3. Proposta do piloto</h4>
+  <table class="r">
+    <thead><tr><th>Parâmetro</th><th>Especificação</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Nome</td><td>Piloto AI-IS com baseline manual</td></tr>
+      <tr><td class="k">Duração</td><td>Estimativa de {{ wbs_total | br_dec(0) }} horas de trabalho ({{ wbs_weeks | br_dec(1) }} semanas para uma pessoa), a validar</td></tr>
+      <tr><td class="k">Modelo de engajamento</td><td>A definir com o patrocinador</td></tr>
+      <tr><td class="k">Objetivo primário</td><td>Medir, em dados reais, o tempo e a qualidade do assessment manual versus AI-IS com revisão humana.</td></tr>
+    </tbody>
+  </table>
+  <hr>
+  <h4>Handoff</h4>
+  <table class="r"><thead><tr><th>Campo</th><th>Valor</th></tr></thead><tbody>
+    <tr><td>Nível de evidência</td><td>Documental e medido</td></tr>
+    <tr><td>Bloqueios</td><td>Nenhum para o piloto; dados reais dependem de acordo de uso</td></tr>
+    <tr><td>Próximo passo recomendado</td><td>Emitir o escopo do piloto ao patrocinador para aprovação.</td></tr>
+  </tbody></table>
+</section>
+
+<!-- 02 -->
+<section class="sec">
+  <div class="sec-head"><span class="n">02</span><p class="eyebrow">Medição</p><h2>Resultados medidos</h2></div>
+  <h3 class="title">Perfilamento e sugestão de mapeamento, dataset a dataset</h3>
+  <p>Todos os valores abaixo foram medidos e podem ser refeitos com <code>make benchmark</code> (perfilamento) e <code>make llm-benchmark</code> (sugestão com IA). Tokens e custo vêm do provedor; o custo é calculado com os preços informados (US$ {{ llm.pricing_usd_per_million.input | br_dec(2) }} de entrada e US$ {{ llm.pricing_usd_per_million.output | br_dec(2) }} de saída por milhão de tokens).</p>
+  <hr>
+  <h4>1. Sugestão de mapeamento com IA</h4>
+  <div class="tbl-wrap"><table class="r">
+    <thead><tr><th>Dataset</th><th class="num">Linhas</th><th class="num">Col.</th><th class="num">Alertas</th><th class="num">Latência mediana (s)</th><th class="num">Máx. (s)</th><th class="num">Custo médio (US$)</th><th class="num">Pass rate</th><th class="num">Estáveis</th></tr></thead>
+    <tbody>{% for d in per_dataset %}
+      <tr><td class="k">{{ d.name }}</td><td class="num">{{ d.rows | br_int }}</td><td class="num">{{ d.columns }}</td><td class="num">{{ d.alerts }}</td><td class="num">{{ (d.latency_median / 1000) | br_dec(1) }}</td><td class="num">{{ (d.latency_max / 1000) | br_dec(1) }}</td><td class="num">{{ d.cost_mean | br_dec(6) }}</td><td class="num">{{ d.pass_mean | br_dec(2) }}</td><td class="num">{{ d.stable }}/{{ d.columns }}</td></tr>
+    {% endfor %}
+      <tr class="total"><td>Total</td><td class="num" colspan="4">{{ t.runs }} chamadas</td><td class="num">{{ (t.latency_ms_max / 1000) | br_dec(1) }}</td><td class="num">{{ t.cost_usd_mean | br_dec(6) }}</td><td class="num">{{ t.pass_rate_mean | br_dec(2) }}</td><td class="num">{{ t.columns_stable_across_reps }}/{{ t.columns_total }}</td></tr>
+    </tbody></table></div>
+  {% if profile %}
+  <h4>2. Perfilamento determinístico</h4>
+  <div class="tbl-wrap"><table class="r">
+    <thead><tr><th>Arquivo</th><th class="num">Linhas</th><th class="num">Colunas</th><th class="num">Perfil (ms)</th><th class="num">Upload até a página (ms)</th></tr></thead>
+    <tbody>{% for d in profile.datasets %}
+      <tr><td class="k">{{ d.file }}</td><td class="num">{{ d.rows | br_int }}</td><td class="num">{{ d.columns }}</td><td class="num">{{ d.profile_ms_median | br_dec(1) }}</td><td class="num">{{ d.upload_to_page_ms_median | br_dec(1) }}</td></tr>
+    {% endfor %}</tbody></table></div>
+  <p>Medianas de {{ profile.method.profile_runs_per_file }} execuções do perfilador e {{ profile.method.upload_runs_per_file }} uploads contra um servidor real em localhost. {{ profile.detection.defects_detected }} de {{ profile.detection.defects_injected }} defeitos injetados de propósito foram detectados, sem alertas falsos em arquivos limpos.</p>
+  {% endif %}
+  <hr>
+  <h4>Handoff</h4>
+  <table class="r"><thead><tr><th>Campo</th><th>Valor</th></tr></thead><tbody>
+    <tr><td>Nível de evidência</td><td>Medido</td></tr>
+    <tr><td>Bloqueios</td><td>Nenhum</td></tr>
+    <tr><td>Próximo passo recomendado</td><td>Repetir as medições com dados reais no piloto.</td></tr>
+  </tbody></table>
+</section>
+
+<!-- 03 -->
+<section class="sec">
+  <div class="sec-head"><span class="n">03</span><p class="eyebrow">Análise</p><h2>Análise dos dados</h2></div>
+  <h3 class="title">Concordância, divergências, estabilidade e cauda de custo</h3>
+  <p>Esta seção olha além das médias: onde o modelo diverge do perfil, o quanto ele repete a si mesmo e como o pior caso se comporta.</p>
+  <hr>
+  <h4>1. Composição dos datasets</h4>
+  <table class="r">
+    <thead><tr><th>Dataset</th><th>Tipos inferidos pelo perfil</th><th>Alertas do perfil</th></tr></thead>
+    <tbody>{% for name, d in llm.datasets.items() %}
+      <tr><td class="k">{{ name }}</td><td>{% for tp, n in d.types.items() %}{{ n }} {{ tp }}{{ ', ' if not loop.last }}{% endfor %}</td><td>{{ d.alerts | join(', ') if d.alerts else 'nenhum' }}</td></tr>
+    {% endfor %}</tbody></table>
+  <h4>2. Concordância e divergências com o perfil</h4>
+  <p>Em média {{ (t.type_family_agreement_mean * 100) | br_dec(1) }}% das colunas receberam um tipo da mesma família que o perfil inferiu. É uma medida de coerência, não de acerto: o perfil também pode estar errado. Dos {{ t.renames_needed }} nomes incompatíveis com Delta apresentados, o modelo corrigiu {{ t.renames_done }}.</p>
+  {% if disagreements %}
+  <table class="r">
+    <thead><tr><th>Dataset</th><th>Coluna</th><th>Perfil → sugestão</th><th class="num">Repetições</th></tr></thead>
+    <tbody>{% for d in disagreements %}<tr><td class="k">{{ d.dataset }}</td><td>{{ d.column }}</td><td>{{ d.change }}</td><td class="num">{{ d.times }}/{{ llm.method.repetitions }}</td></tr>{% endfor %}</tbody></table>
+  <p>Só um revisor pode dizer se errou o modelo ou o perfil (por exemplo, datas em formato não ISO que o perfil lê como texto). Cada divergência é um ponto de revisão humana.</p>
+  {% endif %}
+  <h4>3. Estabilidade entre repetições</h4>
+  <p>{{ t.columns_stable_across_reps }} de {{ t.columns_total }} colunas ({{ (t.columns_stable_across_reps / t.columns_total * 100) | br_dec(0) }}%) receberam o mesmo destino e tipo nas {{ llm.method.repetitions }} repetições.</p>
+  {% if t.columns_stable_across_reps < t.columns_total %}
+  <div class="flag"><span class="flag-k">Instabilidade entre repetições</span><p>{{ t.columns_total - t.columns_stable_across_reps }} colunas mudaram de destino ou tipo entre repetições do mesmo dataset. Trate a sugestão como rascunho, não como resultado reproduzível.</p></div>
+  {% endif %}
+  <h4>4. Cauda de latência e de custo</h4>
+  <table class="r">
+    <thead><tr><th>Métrica</th><th class="num">Valor</th><th>Leitura</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Latência mediana</td><td class="num">{{ (t.latency_ms_median / 1000) | br_dec(1) }} s</td><td>Tempo típico de uma sugestão.</td></tr>
+      <tr><td class="k">Latência p95</td><td class="num">{{ (t.latency_ms_p95 / 1000) | br_dec(1) }} s</td><td>1 em 20 chamadas leva ao menos isto.</td></tr>
+      <tr><td class="k">Latência máxima</td><td class="num">{{ (t.latency_ms_max / 1000) | br_dec(1) }} s</td><td>O modelo raciocina antes de responder; o tempo varia.</td></tr>
+      <tr><td class="k">Custo médio</td><td class="num">US$ {{ t.cost_usd_mean | br_dec(6) }}</td><td>Por sugestão.</td></tr>
+      <tr><td class="k">Custo máximo</td><td class="num">US$ {{ t.cost_usd_max | br_dec(6) }}</td><td>{{ cost_tail | br_dec(1) }}× a média; o teto de saída do portão limita o pior caso.</td></tr>
+    </tbody></table>
+  <hr>
+  <h4>Handoff</h4>
+  <table class="r"><thead><tr><th>Campo</th><th>Valor</th></tr></thead><tbody>
+    <tr><td>Nível de evidência</td><td>Medido</td></tr>
+    <tr><td>Bloqueios</td><td>Nenhum; a instabilidade exige o gabarito humano do piloto</td></tr>
+    <tr><td>Próximo passo recomendado</td><td>Coletar as decisões dos revisores para medir a taxa de aceite sem edição.</td></tr>
+  </tbody></table>
+</section>
+
+<!-- 04 -->
+<section class="sec">
+  <div class="sec-head"><span class="n">04</span><p class="eyebrow">Esforço</p><h2>Esforço e capacidade</h2></div>
+  <h3 class="title">O que foi entregue e o que o piloto exige</h3>
+  <hr>
+  <h4>1. Esforço de construção (medido)</h4>
+  {% if project %}
+  <table class="r">
+    <thead><tr><th>Parâmetro</th><th class="num">Valor</th><th>Fonte</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Commits desde o rebranding</td><td class="num">{{ project.commits }}</td><td>git</td></tr>
+      <tr><td class="k">Arquivos alterados</td><td class="num">{{ project.files_changed }}</td><td>git</td></tr>
+      <tr><td class="k">Linhas de código (SDK, app, front-end)</td><td class="num">{{ (project.loc.sdk_and_app_python + project.loc.templates_css_js) | br_int }}</td><td>git, contagem de linhas</td></tr>
+      <tr><td class="k">Testes automatizados</td><td class="num">{{ project.tests }}</td><td>pytest</td></tr>
+      <tr><td class="k">Intervalo entre o primeiro e o último commit</td><td class="num">{{ project.span_hours | br_dec(1) }} h</td><td>git ({{ project.first_commit }} a {{ project.last_commit }})</td></tr>
+    </tbody></table>
+  <p><b>Por que não comparamos com o esforço de um time.</b> O intervalo entre commits é o único registro de tempo, e ele não inclui a revisão e a direção humanas. Sem uma medição do tempo humano no ciclo, qualquer comparação seria estimativa, então ela não é feita aqui.</p>
+  {% endif %}
+  <h4>2. Esforço estimado do piloto (ilustrativo)</h4>
+  <p>Estimativas de três pontos, com E = (O + 4M + P) / 6. São premissas a validar com o cliente, não medições.</p>
+  <table class="r">
+    <thead><tr><th>Código</th><th>Tarefa</th><th class="num">O (h)</th><th class="num">M (h)</th><th class="num">P (h)</th><th class="num">E (h)</th><th>Rastreabilidade</th></tr></thead>
+    <tbody>{% for w in wbs %}
+      <tr><td class="k">{{ w.code }}</td><td>{{ w.task }}</td><td class="num">{{ w.o | br_dec(1) }}</td><td class="num">{{ w.m | br_dec(1) }}</td><td class="num">{{ w.p | br_dec(1) }}</td><td class="num"><b>{{ w.e | br_dec(1) }}</b></td><td>{{ w.source }}</td></tr>
+    {% endfor %}
+      <tr class="total"><td>Total</td><td>Piloto AI-IS</td><td class="num">{{ wbs | sum(attribute='o') | br_dec(1) }}</td><td class="num">{{ wbs | sum(attribute='m') | br_dec(1) }}</td><td class="num">{{ wbs | sum(attribute='p') | br_dec(1) }}</td><td class="num">{{ wbs_total | br_dec(1) }}</td><td>{{ wbs_weeks | br_dec(1) }} semanas a 25 h/semana</td></tr>
+    </tbody></table>
+  <div class="flag"><span class="flag-k">Estimativa não verificada</span><p>As horas do piloto são <code>estimativas ilustrativas</code>. Valide-as com quem executará o trabalho antes de assumir prazo ou custo.</p></div>
+  <hr>
+  <h4>Handoff</h4>
+  <table class="r"><thead><tr><th>Campo</th><th>Valor</th></tr></thead><tbody>
+    <tr><td>Nível de evidência</td><td>Parcial (construção medida; piloto estimado)</td></tr>
+    <tr><td>Bloqueios</td><td>Nenhum</td></tr>
+    <tr><td>Próximo passo recomendado</td><td>Validar a estimativa do piloto com o time que executará.</td></tr>
+  </tbody></table>
+</section>
+
+<!-- 05 -->
+<section class="sec" id="roi">
+  <div class="sec-head"><span class="n">05</span><p class="eyebrow">Economia</p><h2>Economia e ROI</h2></div>
+  <h3 class="title">Assessment feito por um time versus IA com revisão humana</h3>
+  <p>O cálculo compara o custo de um assessment feito à mão com o custo da IA mais a revisão humana. <b>Não inclui custo nem risco de migração</b>, porque o AI-IS entrega o resultado sem migrar de plataforma.</p>
+  <div class="flag"><span class="flag-k">Premissas não verificadas</span><p>Todos os parâmetros abaixo são <code>premissas ilustrativas</code>, exceto o custo de IA por dataset, que vem da medição. Na versão online, edite os valores e o resultado se recalcula. O resultado só vale com os seus números.</p></div>
+  <hr>
+  <h4>1. Parâmetros</h4>
+  <div id="roi-form">
+  <table class="r">
+    <thead><tr><th>Parâmetro</th><th class="num">Valor</th><th>Origem</th></tr></thead>
+    <tbody>
+      {% for key, a in assumptions.items() %}
+      <tr><td class="k">{{ a.label }}{% if a.unit %} ({{ a.unit }}){% endif %}</td><td class="num"><input type="number" inputmode="decimal" min="0" step="{{ a.step }}" name="{{ key }}" value="{{ defaults[key] }}" aria-label="{{ a.label }}"></td><td>Premissa ilustrativa</td></tr>
+      {% endfor %}
+      <tr><td class="k">Custo de IA por dataset (US$)</td><td class="num"><input type="number" min="0" step="0.000001" name="ai_cost" value="{{ '%.6f' % ai_cost }}" aria-label="Custo de IA por dataset"></td><td>Medido (<code>llm.json</code>)</td></tr>
+    </tbody></table>
+  </div>
+  <h4>2. Resultado</h4>
+  <table class="r" id="roi-out">
+    <thead><tr><th>Indicador</th><th class="num">Valor</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Custo de um assessment, à mão</td><td class="num"><b data-o="manual_cost" data-f="usd0"></b></td></tr>
+      <tr><td class="k">Custo de um assessment, com IA e revisão</td><td class="num"><b data-o="assisted_cost" data-f="usd0"></b></td></tr>
+      <tr><td class="k">Economia por assessment</td><td class="num"><b data-o="saving" data-f="usd0"></b></td></tr>
+      <tr><td class="k">Horas devolvidas ao time por assessment</td><td class="num"><b data-o="hours_saved" data-f="h"></b></td></tr>
+      <tr><td class="k">Redução de custo</td><td class="num"><b data-o="reduction" data-f="pct"></b></td></tr>
+      <tr><td class="k">Economia anual</td><td class="num"><b data-o="annual_saving" data-f="usd0"></b></td></tr>
+      <tr><td class="k">Payback (em assessments)</td><td class="num"><b data-o="payback_assessments" data-f="n1"></b></td></tr>
+      <tr><td class="k">ROI no primeiro ano</td><td class="num"><b data-o="roi_year_one" data-f="pct"></b></td></tr>
+    </tbody></table>
+  <h4>3. Sensibilidade do ROI no primeiro ano</h4>
+  <table class="r" id="sens"><thead></thead><tbody></tbody></table>
+  <p>Linhas: horas do time por dataset, à mão. Colunas: horas de revisão por dataset, com IA. O gargalo econômico é a revisão humana, não o custo do modelo, que é de frações de centavo por dataset.</p>
+  <hr>
+  <h4>Handoff</h4>
+  <table class="r"><thead><tr><th>Campo</th><th>Valor</th></tr></thead><tbody>
+    <tr><td>Nível de evidência</td><td>Premissa (só o custo de IA é medido)</td></tr>
+    <tr><td>Bloqueios</td><td>Baseline manual não medido</td></tr>
+    <tr><td>Próximo passo recomendado</td><td>Cronometrar o assessment manual em 5 datasets e refazer este cálculo.</td></tr>
+  </tbody></table>
+</section>
+
+<!-- 06 -->
+<section class="sec">
+  <div class="sec-head"><span class="n">06</span><p class="eyebrow">Riscos</p><h2>Riscos e pré-condições</h2></div>
+  <h3 class="title">O que pode invalidar esta leitura</h3>
+  <hr>
+  <h4>1. Riscos principais</h4>
+  <table class="r">
+    <thead><tr><th>Área de risco</th><th>Severidade</th><th>Causa raiz e contexto</th><th>Mitigação ou pré-condição exigida</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Baseline manual não medido</td><td>Alta</td><td>Nenhuma hora de time humano foi cronometrada; o ROI depende das premissas.</td><td>Cronometrar 5 datasets à mão no piloto.</td></tr>
+      <tr><td class="k">Amostra pequena e sintética</td><td>Alta</td><td>{{ llm.method.datasets }} datasets, {{ t.runs }} chamadas, 1 modelo, 1 máquina; sem dados sensíveis.</td><td>Repetir com dados reais de um cliente.</td></tr>
+      <tr><td class="k">Qualidade sem gabarito humano</td><td>Média</td><td>A checagem mede regras (nomes, tipos, colisões), não se o mapeamento é o que o negócio quer.</td><td>Medir a taxa de aceite sem edição pelos revisores.</td></tr>
+      <tr><td class="k">Instabilidade e cauda de latência</td><td>Média</td><td>{{ t.columns_total - t.columns_stable_across_reps }} colunas instáveis; máximo de {{ (t.latency_ms_max / 1000) | br_dec(1) }} s por chamada.</td><td>Aprovação humana obrigatória; limite de tempo por chamada.</td></tr>
+      <tr><td class="k">Privacidade de nomes de coluna</td><td>Média</td><td>Só nomes e tipos vão ao modelo, mas nomes podem revelar informação de negócio.</td><td>Acordo de uso de dados e revisão de segurança antes do piloto.</td></tr>
+      <tr><td class="k">Preço do modelo por confirmar</td><td>Baixa</td><td>Os preços vieram de um cartão de modelo; a API expõe <code>{{ llm.model }}</code>.</td><td>Confirmar os preços do modelo em uso.</td></tr>
+      <tr><td class="k">Score heurístico</td><td>Baixa</td><td>O score que escolhe o nível é provisório (36 + 2 por coluna + 4 por alerta).</td><td>Calibrar com dados do piloto.</td></tr>
+    </tbody></table>
+  <hr>
+  <h4>Handoff</h4>
+  <table class="r"><thead><tr><th>Campo</th><th>Valor</th></tr></thead><tbody>
+    <tr><td>Nível de evidência</td><td>Julgamento</td></tr>
+    <tr><td>Bloqueios</td><td>Acordo de uso de dados para o piloto</td></tr>
+    <tr><td>Próximo passo recomendado</td><td>Fechar o acordo de dados e a revisão de segurança.</td></tr>
+  </tbody></table>
+</section>
+
+<!-- 07 -->
+<section class="sec">
+  <div class="sec-head"><span class="n">07</span><p class="eyebrow">Decisão</p><h2>Recomendação e decisão</h2></div>
+  <h3 class="title">Três caminhos, com critérios para decidir</h3>
+  <hr>
+  <h4>1. Opções</h4>
+  <table class="r">
+    <thead><tr><th>Opção</th><th>Quando faz sentido</th><th>O que falta</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Piloto AI-IS (recomendado)</td><td>Há um cliente com dados reais e disposição de medir o baseline manual em paralelo.</td><td>Acordo de dados, ambiente com HTTPS, cronometragem de 5 datasets à mão.</td></tr>
+      <tr><td class="k">Ampliar a cobertura antes</td><td>O risco for a qualidade em outras origens (Oracle, Snowflake, SAP).</td><td>Conectores de origem e mais fixtures.</td></tr>
+      <tr><td class="k">Não prosseguir</td><td>O ganho de horas não justificar a revisão humana.</td><td>Rodar o cálculo da seção 05 com os números do seu time.</td></tr>
+    </tbody></table>
+  <h4>2. Critérios de sucesso propostos para o piloto</h4>
+  <p>A calibrar com o cliente:</p>
+  <ol>
+    <li><b>Baseline medido</b> em 5 datasets, com o tempo humano cronometrado.</li>
+    <li><b>Taxa de sugestões aceitas sem edição</b> pelos revisores, definida antes do início.</li>
+    <li><b>Custo de IA por dataset</b> abaixo do custo de 1 hora do time.</li>
+    <li><b>Tempo de revisão por dataset</b> abaixo do baseline manual.</li>
+    <li><b>Zero linhas de dados</b> enviadas ao modelo.</li>
+  </ol>
+  <h4>3. Decisão pedida</h4>
+  <p>Autorizar o piloto AI-IS e comprometer os pré-requisitos descritos no resumo executivo. A decisão de investir continua sendo do patrocinador; este relatório separa o que foi medido do que foi assumido para que ela seja tomada com esse critério.</p>
+  <hr>
+  <h4>Handoff</h4>
+  <table class="r"><thead><tr><th>Campo</th><th>Valor</th></tr></thead><tbody>
+    <tr><td>Nível de evidência</td><td>Julgamento apoiado em medições</td></tr>
+    <tr><td>Bloqueios</td><td>Nenhum além dos pré-requisitos do piloto</td></tr>
+    <tr><td>Próximo passo recomendado</td><td>Emitir o escopo do piloto ao patrocinador para aprovação comercial.</td></tr>
+  </tbody></table>
+</section>
+</div>
+<script id="roi-data" type="application/json">{{ {"ai_cost": ai_cost, "defaults": defaults} | tojson }}</script>
+<script src="/static/report.js" defer></script>
+{% endif %}
+</body>
+</html>

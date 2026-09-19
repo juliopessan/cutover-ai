@@ -21,6 +21,7 @@ from fastapi.templating import Jinja2Templates
 from cutover.governance.bridge import load_dispatch_tiers
 from cutover.web import auth
 from cutover.web.db import Database
+from cutover.web.report import build_context
 from cutover.web.live import SESSION_BUDGET_USD, run_mapping_stream
 from cutover.web.profiling import ProfileError, profile_csv
 
@@ -53,6 +54,7 @@ def create_app(
     throttle = auth.LoginThrottle()
     templates = Jinja2Templates(directory=str(HERE / "templates"))
     templates.env.filters["br_int"] = lambda n: f"{n:,}".replace(",", ".")
+    templates.env.filters["br_usd"] = lambda n, d=6: f"{n:.{d}f}".replace(".", ",")
     templates.env.filters["br_dec"] = lambda n, digits=1: f"{n:.{digits}f}".replace(".", ",")
 
     def load_benchmark() -> dict[str, Any] | None:
@@ -105,6 +107,10 @@ def create_app(
         return response
 
     # ---- public ----------------------------------------------------------------
+
+    @app.get("/relatorio")
+    def report(request: Request) -> Response:
+        return render(request, "report.html", **build_context())
 
     @app.get("/favicon.ico", include_in_schema=False)
     def favicon() -> FileResponse:
