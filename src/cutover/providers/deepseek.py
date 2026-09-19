@@ -74,17 +74,44 @@ class DeepSeekProvider:
         self.client = OpenAI(api_key=resolved_key, base_url=base_url)
 
     def complete(self, *, model: str, payload: str, **kwargs: Any) -> Any:
+        """One chat completion. Pass ``on_delta(kind, text)`` to receive the stream as it arrives.
+
+        ``kind`` is ``"reasoning"`` or ``"content"``. Usage is always taken from the provider's own
+        report; a stream that ends without usage raises, because cost would be unmeasured.
+        """
         from tollgate.governance.runtime.provider_gateway import ProviderResponse
 
+        on_delta = kwargs.pop("on_delta", None)
         system = kwargs.pop("instructions", None)
         messages = [{"role": "system", "content": system}] if system else []
         messages.append({"role": "user", "content": payload})
-        response = self.client.chat.completions.create(model=model, messages=messages, **kwargs)
-        usage = response.usage
+        if on_delta is None:
+            response = self.client.chat.completions.create(model=model, messages=messages, **kwargs)
+            usage, content, raw = response.usage, response.choices[0].message.content or "", response
+        else:
+            stream = self.client.chat.completions.create(
+                model=model, messages=messages, stream=True,
+                stream_options={"include_usage": True}, **kwargs)
+            parts: list[str] = []
+            usage = None
+            for chunk in stream:
+                if getattr(chunk, "usage", None):
+                    usage = chunk.usage
+                if not chunk.choices:
+                    continue
+                delta = chunk.choices[0].delta
+                if getattr(delta, "reasoning_content", None):
+                    on_delta("reasoning", delta.reasoning_content)
+                if getattr(delta, "content", None):
+                    parts.append(delta.content)
+                    on_delta("content", delta.content)
+            content, raw = "".join(parts), None
+            if usage is None:
+                raise DeepSeekProviderError("provider ended the stream without usage; cost cannot be measured")
         return ProviderResponse(
-            content=response.choices[0].message.content or "",
+            content=content,
             input_tokens=usage.prompt_tokens,
             output_tokens=usage.completion_tokens,
             cost_usd=self.pricing.calculate(usage.prompt_tokens, usage.completion_tokens),
-            raw=response,
+            raw=raw,
         )

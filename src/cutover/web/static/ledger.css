@@ -157,6 +157,24 @@ td.name { font-family: var(--mono); font-size: 12.5px; color: var(--ink); }
 .ledger-head .live.running::before { animation: pulse 1s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: .25; } }
 @media (prefers-reduced-motion: reduce) { .step.wait .dot, .ledger-head .live.running::before { animation: none; } }
+/* live UX: stages, verbs, streaming */
+.stages { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.stages li { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ledger-dim);
+  padding-top: 8px; border-top: 2px solid var(--ledger-rule); transition: color .3s, border-color .3s; }
+.stages li.active { color: var(--ledger-ink); border-color: var(--ledger-ink); animation: pulse 1s ease-in-out infinite; }
+.stages li.done { color: var(--ledger-ink); border-color: var(--ledger-mint); }
+.verb { margin: 0; font-family: var(--mono); font-size: 13px; color: var(--ledger-ink); min-height: 20px; letter-spacing: .02em; }
+.step { animation: enter .35s ease both; }
+@keyframes enter { from { opacity: 0; transform: translateY(6px); } }
+.stream { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.stream .tag { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ledger-dim); }
+.stream pre { margin: 0; padding: 10px 12px; font: 12px/1.5 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.stream .think { background: transparent; border-left: 2px solid var(--ledger-rule); color: var(--ledger-dim); max-height: 7.5em; overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 45%); mask-image: linear-gradient(to bottom, transparent, #000 45%); }
+.stream .answer { background: var(--ledger-rule); color: var(--ledger-ink); max-height: 14em; overflow-y: auto; }
+.stream .meter { font-family: var(--mono); font-size: 11px; color: var(--ledger-dim); }
+tr.reveal { animation: enter .4s ease both; }
+@media (prefers-reduced-motion: reduce) { .step, tr.reveal, .stages li.active { animation: none; } }
 button.btn:disabled { opacity: .45; cursor: not-allowed; }
 
 /* auth + app */

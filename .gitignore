@@ -10,3 +10,4 @@ outputs/
 dist/
 cutover-data/
 .tools/
+samples/

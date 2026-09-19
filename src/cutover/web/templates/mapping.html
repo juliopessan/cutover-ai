@@ -17,6 +17,10 @@
   <div class="dataset-grid">
     <div class="ledger" aria-live="polite">
       <div class="ledger-head"><span class="live" id="state">Aguardando</span><span class="meta" id="clock">0,0 s</span></div>
+      <ol id="stages" class="stages" aria-label="Etapas">
+        <li data-s="gate">Portão</li><li data-s="call">Chamada</li><li data-s="verify">Verificação</li><li data-s="policy">Política</li>
+      </ol>
+      <p id="verb" class="verb" aria-hidden="true">Pronto para começar</p>
       <div id="steps" class="steps-live"><p class="idle">Clique em “Rodar com DeepSeek” para começar.</p></div>
       <div id="summary" class="figs" hidden>
         <div class="fig"><b id="s-in">0</b><span>tokens de entrada</span></div>

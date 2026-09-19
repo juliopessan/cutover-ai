@@ -89,13 +89,32 @@ class _EventingClient:
     def complete(self, *, model: str, payload: str, **kwargs: Any) -> Any:
         import time
 
+        totals = {"reasoning": 0, "content": 0}
+        buffer = {"reasoning": "", "content": ""}
+        last_flush = [time.perf_counter()]
+
+        def flush() -> None:
+            for kind, text in buffer.items():
+                if text:
+                    self._emit({"type": "provider.delta", "kind": kind, "text": text, "chars": totals[kind]})
+                    buffer[kind] = ""
+            last_flush[0] = time.perf_counter()
+
+        def on_delta(kind: str, text: str) -> None:
+            buffer[kind] += text
+            totals[kind] += len(text)
+            if time.perf_counter() - last_flush[0] >= 0.12:
+                flush()
+
         self._emit({"type": "provider.call", "model": model, "max_tokens": kwargs.get("max_tokens")})
         started = time.perf_counter()
         try:
-            response = self._client.complete(model=model, payload=payload, **kwargs)
+            response = self._client.complete(model=model, payload=payload, on_delta=on_delta, **kwargs)
         except Exception as exc:
+            flush()
             self._emit({"type": "provider.error", "message": f"{type(exc).__name__}: {exc}"})
             raise
+        flush()
         self._emit({
             "type": "provider.response", "input_tokens": response.input_tokens,
             "output_tokens": response.output_tokens, "cost_usd": response.cost_usd,

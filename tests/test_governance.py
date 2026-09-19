@@ -114,3 +114,57 @@ def test_deepseek_pricing_from_env(monkeypatch):
     monkeypatch.delenv("DEEPSEEK_PRICE_OUTPUT_PER_M")
     with pytest.raises(DeepSeekProviderError):
         DeepSeekPricing.from_env()
+
+
+def _chunk(reasoning=None, content=None, usage=None):
+    from types import SimpleNamespace as NS
+
+    choices = [NS(delta=NS(reasoning_content=reasoning, content=content))] if (reasoning or content) else []
+    return NS(choices=choices, usage=usage)
+
+
+def _streaming_client(chunks):
+    from types import SimpleNamespace as NS
+
+    class Completions:
+        def create(self, **kwargs):
+            self.kwargs = kwargs
+            return iter(chunks)
+
+    return NS(chat=NS(completions=Completions()))
+
+
+def test_deepseek_streams_deltas_and_reports_measured_usage():
+    from types import SimpleNamespace as NS
+
+    chunks = [_chunk(reasoning="thinking "), _chunk(content='{"a":'), _chunk(content=" 1}"),
+              _chunk(usage=NS(prompt_tokens=1_000_000, completion_tokens=500_000))]
+    client = _streaming_client(chunks)
+    provider = DeepSeekProvider(pricing=DeepSeekPricing(1.0, 2.0), client=client)
+    seen = []
+    result = provider.complete(model="m", payload="hi", on_delta=lambda kind, text: seen.append((kind, text)))
+    assert result.content == '{"a": 1}' and result.cost_usd == pytest.approx(2.0)
+    assert seen[0] == ("reasoning", "thinking ") and client.chat.completions.kwargs["stream"] is True
+
+
+def test_deepseek_stream_without_usage_is_rejected():
+    from cutover.providers.deepseek import DeepSeekProviderError
+
+    provider = DeepSeekProvider(pricing=DeepSeekPricing(1.0, 2.0), client=_streaming_client([_chunk(content="x")]))
+    with pytest.raises(DeepSeekProviderError):
+        provider.complete(model="m", payload="hi", on_delta=lambda *_: None)
+
+
+def test_gateway_forwards_stream_deltas_as_events(tmp_path):
+    class Streaming:
+        def complete(self, *, model, payload, on_delta=None, **kwargs):
+            on_delta("reasoning", "hmm")
+            on_delta("content", "ok")
+            return ProviderResponse("ok", 10, 5, 0.0001)
+
+    seen = []
+    gateway = build_gateway(GovernanceSettings(db_path=tmp_path / "l.db"), Streaming(), on_event=seen.append)
+    gateway.complete(envelope("payload"))
+    deltas = [e for e in seen if e["type"] == "provider.delta"]
+    assert {(d["kind"], d["text"]) for d in deltas} == {("reasoning", "hmm"), ("content", "ok")}
+    assert seen[-1]["type"] in {"gate.audited", "provider.response"}
