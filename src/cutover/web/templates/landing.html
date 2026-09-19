@@ -49,6 +49,32 @@
   </ol>
 </section>
 
+{% if bench %}
+<section class="section" id="prova">
+  <p class="eyebrow">Prova medida</p>
+  <h2>Medido em {{ bench.totals.files }} arquivos públicos, com resultado que você pode refazer.</h2>
+  <div class="proof">
+    <div class="stat"><b>{{ bench.totals.rows | br_int }}</b><span>linhas perfiladas</span></div>
+    <div class="stat"><b>{{ bench.detection.defects_detected }}/{{ bench.detection.defects_injected }}</b><span>defeitos injetados detectados</span></div>
+    <div class="stat"><b>{{ bench.totals.sha256_confirmed_on_page }}</b><span>SHA-256 conferidos</span></div>
+    <div class="stat"><b>{{ '%02d' % bench.totals.false_alarms_on_clean_files }}</b><span>alertas em arquivos limpos</span></div>
+  </div>
+  <div class="tbl-wrap" style="margin-top: 32px">
+    <table>
+      <thead><tr><th>Arquivo</th><th class="num">Linhas</th><th class="num">Colunas</th><th class="num">Perfil (ms)</th><th class="num">Upload até a página (ms)</th></tr></thead>
+      <tbody>
+      {% for d in bench.datasets %}
+        <tr><td class="name">{{ d.file }}</td><td class="num">{{ d.rows | br_int }}</td><td class="num">{{ d.columns }}</td><td class="num">{{ d.profile_ms_median | br_dec(1) }}</td><td class="num">{{ d.upload_to_page_ms_median | br_dec(1) }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="note" style="margin-top: 20px; max-width: 68ch">
+    Medido em {{ bench.generated_at }}, commit <code>{{ bench.git_commit }}</code>, {{ bench.environment.platform }}, Python {{ bench.environment.python }}. Tempos são medianas de {{ bench.method.profile_runs_per_file }} execuções do perfilador e {{ bench.method.upload_runs_per_file }} uploads contra um servidor real em localhost. Os arquivos são os seeds sintéticos do exemplo dbt da Cloudera (Apache-2.0). Os defeitos foram injetados de propósito em uma cópia do arquivo de casos. Os tempos vêm de uma máquina só e não são garantia de desempenho em produção. Refaça com <code>make benchmark</code>.
+  </p>
+</section>
+{% endif %}
+
 <section class="section" id="governanca">
   <p class="eyebrow">Governança de custo</p>
   <h2>Cada nível define o que uma chamada pode custar.</h2>

@@ -1,0 +1,78 @@
+{
+  "generated_at": "2026-09-19 14:35 UTC",
+  "git_commit": "ea6cd34",
+  "git_dirty": false,
+  "environment": {
+    "python": "3.14.6",
+    "platform": "Darwin arm64",
+    "cpus": 8
+  },
+  "method": {
+    "profile_runs_per_file": 20,
+    "upload_runs_per_file": 5,
+    "server": "real uvicorn process on localhost, fresh SQLite"
+  },
+  "datasets": [
+    {
+      "file": "raw_covid__cases.csv",
+      "bytes": 17770,
+      "rows": 510,
+      "columns": 7,
+      "alerts": 0,
+      "sha256_matches_independent": true,
+      "profile_ms_median": 4.01,
+      "profile_ms_p95": 4.14,
+      "rows_per_second": 127175,
+      "upload_to_page_ms_median": 8.8
+    },
+    {
+      "file": "raw_covid__vaccines.csv",
+      "bytes": 195758,
+      "rows": 3740,
+      "columns": 10,
+      "alerts": 0,
+      "sha256_matches_independent": true,
+      "profile_ms_median": 24.61,
+      "profile_ms_p95": 24.84,
+      "rows_per_second": 151966,
+      "upload_to_page_ms_median": 30.2
+    },
+    {
+      "file": "ref__country_codes.csv",
+      "bytes": 8069,
+      "rows": 255,
+      "columns": 6,
+      "alerts": 0,
+      "sha256_matches_independent": true,
+      "profile_ms_median": 2.12,
+      "profile_ms_p95": 2.15,
+      "rows_per_second": 120296,
+      "upload_to_page_ms_median": 6.3
+    },
+    {
+      "file": "ref__populations.csv",
+      "bytes": 3606,
+      "rows": 266,
+      "columns": 2,
+      "alerts": 0,
+      "sha256_matches_independent": true,
+      "profile_ms_median": 1.13,
+      "profile_ms_p95": 1.19,
+      "rows_per_second": 235216,
+      "upload_to_page_ms_median": 5.2
+    }
+  ],
+  "totals": {
+    "files": 4,
+    "rows": 4771,
+    "bytes": 225203,
+    "sha256_confirmed_on_page": "4/4",
+    "false_alarms_on_clean_files": 0
+  },
+  "detection": {
+    "defects_injected": 6,
+    "defects_detected": 6,
+    "missed": [],
+    "unexpected_alerts": []
+  }
+}

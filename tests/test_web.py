@@ -120,3 +120,26 @@ def test_profile_rejects_empty_and_non_utf8(tmp_path):
     path.write_bytes("id,nome\n1,João\n".encode("latin-1"))
     with pytest.raises(ProfileError):
         profile_csv(path)
+
+
+def test_landing_shows_proof_only_when_measurements_exist(tmp_path, monkeypatch):
+    import json
+
+    from cutover.web import app as app_module
+
+    bench = tmp_path / "profile.json"
+    bench.write_text(json.dumps({
+        "generated_at": "2026-01-01 00:00 UTC", "git_commit": "abc1234",
+        "environment": {"platform": "Test x", "python": "3.12"},
+        "method": {"profile_runs_per_file": 2, "upload_runs_per_file": 1},
+        "datasets": [{"file": "a.csv", "rows": 1234, "columns": 3, "profile_ms_median": 1.5,
+                      "upload_to_page_ms_median": 9.0}],
+        "totals": {"files": 1, "rows": 1234, "sha256_confirmed_on_page": "1/1", "false_alarms_on_clean_files": 0},
+        "detection": {"defects_injected": 6, "defects_detected": 6},
+    }))
+    monkeypatch.setattr(app_module, "BENCHMARK", bench)
+    page = TestClient(create_app(tmp_path / "d")).get("/").text
+    assert "1.234" in page and "6/6" in page and "abc1234" in page
+
+    bench.unlink()
+    assert 'id="prova"' not in TestClient(create_app(tmp_path / "d2")).get("/").text

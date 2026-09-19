@@ -43,6 +43,16 @@ Crie uma conta em `/signup`, envie um CSV em UTF-8 (até 25 MB) e leia o perfil.
 
 Os dados ficam em `CUTOVER_DATA_DIR` (SQLite mais os uploads), o que torna esta uma instalação de nó único: faça backup desse diretório e defina `CUTOVER_COOKIE_SECURE=1` atrás de HTTPS.
 
+## Prova medida
+
+Rodamos o perfilador e o app real sobre os 4 seeds públicos do exemplo dbt da Cloudera (4.771 linhas): hash SHA-256 conferido em 4 de 4 arquivos, 6 de 6 defeitos injetados detectados e nenhum alerta falso nos arquivos limpos. O perfil leva de 1 a 25 ms por arquivo nesta máquina. Os números completos, com data, commit e ambiente, estão na landing e em [`profile.json`](src/cutover/web/benchmarks/profile.json). Refaça com:
+
+```bash
+make benchmark
+```
+
+São medianas de uma única máquina, sobre dados sintéticos e públicos. Servem como evidência de correção e de ordem de grandeza, não como garantia de desempenho em produção.
+
 ## Chamadas de IA governadas (com Tollgate)
 
 O Cutover roteia toda chamada de LLM pelo [Tollgate](https://github.com/juliopessan/toolgate): um score de complexidade escolhe o nível (de Solar a Aurora), o Guardian admite, comprime ou bloqueia o payload, e o resultado é registrado.

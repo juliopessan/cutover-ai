@@ -20,6 +20,7 @@ from cutover.web.db import Database
 from cutover.web.profiling import ProfileError, profile_csv
 
 HERE = Path(__file__).parent
+BENCHMARK = HERE / "benchmarks" / "profile.json"
 COOKIE = "cutover_session"
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 TARGETS = {"microsoft_fabric": "Microsoft Fabric", "databricks": "Databricks"}
@@ -32,6 +33,14 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
     db = Database(data_dir / "cutover.db")
     throttle = auth.LoginThrottle()
     templates = Jinja2Templates(directory=str(HERE / "templates"))
+    templates.env.filters["br_int"] = lambda n: f"{n:,}".replace(",", ".")
+    templates.env.filters["br_dec"] = lambda n, digits=1: f"{n:.{digits}f}".replace(".", ",")
+
+    def load_benchmark() -> dict[str, Any] | None:
+        try:
+            return json.loads(BENCHMARK.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None  # no measurements, no proof section: never show numbers that were not measured
 
     app = FastAPI(title="Cutover", docs_url=None, redoc_url=None, openapi_url=None)
     app.mount("/static", StaticFiles(directory=str(HERE / "static")), name="static")
@@ -86,7 +95,7 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
     def landing(request: Request) -> Response:
         tiers = load_dispatch_tiers()
         return render(request, "landing.html", tiers=tiers,
-                      max_cap=max(t["input_token_cap"] for t in tiers))
+                      max_cap=max(t["input_token_cap"] for t in tiers), bench=load_benchmark())
 
     @app.get("/login")
     def login_form(request: Request) -> Response:
