@@ -56,6 +56,8 @@ h3 { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; }
 .nav-links { display: flex; align-items: center; gap: 24px; font-size: 13.5px; }
 .nav-links a { text-decoration: none; color: var(--ink-soft); }
 .nav-links a:hover { color: var(--ink); }
+.nav-links a.btn { color: var(--paper); }
+.nav-links a.btn:hover { color: var(--ink); }
 .nav form { margin: 0; }
 
 /* buttons — ink only; clay and mint never decorate controls */

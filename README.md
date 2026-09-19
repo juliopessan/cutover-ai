@@ -4,6 +4,8 @@
 
 **Governed data migration to Microsoft Fabric and Databricks: every AI call is scored, budgeted and audited before it costs you a token.**
 
+<p align="center"><img src="docs/assets/landing.png" alt="Cutover landing page: headline 'Cada número da sua migração é medido, não afirmado' beside the cost-gate ledger read from dispatch.yaml" width="860"></p>
+
 Cutover is a Python SDK and control plane that plans, maps and validates enterprise data migrations with AI agents, while keeping cost and risk under hard, deterministic limits. Migration-critical work stays deterministic; models only analyse, suggest and explain, and only after passing a gate.
 
 - **Two first-class targets:** Microsoft Fabric and Databricks, each with an independent contract.
