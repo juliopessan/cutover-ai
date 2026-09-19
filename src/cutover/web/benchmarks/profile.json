@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-09-19 15:12 UTC",
-  "git_commit": "99487a6",
-  "git_dirty": true,
+  "generated_at": "2026-09-19 15:46 UTC",
+  "git_commit": "c1c48be",
+  "git_dirty": false,
   "environment": {
     "python": "3.14.6",
     "platform": "Darwin arm64",
@@ -20,10 +20,10 @@
       "columns": 7,
       "alerts": 0,
       "sha256_matches_independent": true,
-      "profile_ms_median": 4.13,
-      "profile_ms_p95": 4.54,
-      "rows_per_second": 123620,
-      "upload_to_page_ms_median": 9.0
+      "profile_ms_median": 7.15,
+      "profile_ms_p95": 7.26,
+      "rows_per_second": 71368,
+      "upload_to_page_ms_median": 12.6
     },
     {
       "file": "raw_covid__vaccines.csv",
@@ -32,10 +32,10 @@
       "columns": 10,
       "alerts": 0,
       "sha256_matches_independent": true,
-      "profile_ms_median": 25.53,
-      "profile_ms_p95": 26.28,
-      "rows_per_second": 146509,
-      "upload_to_page_ms_median": 30.7
+      "profile_ms_median": 54.6,
+      "profile_ms_p95": 55.28,
+      "rows_per_second": 68497,
+      "upload_to_page_ms_median": 61.6
     },
     {
       "file": "ref__country_codes.csv",
@@ -44,10 +44,10 @@
       "columns": 6,
       "alerts": 0,
       "sha256_matches_independent": true,
-      "profile_ms_median": 2.19,
-      "profile_ms_p95": 2.26,
-      "rows_per_second": 116620,
-      "upload_to_page_ms_median": 6.5
+      "profile_ms_median": 3.36,
+      "profile_ms_p95": 3.57,
+      "rows_per_second": 75848,
+      "upload_to_page_ms_median": 8.8
     },
     {
       "file": "ref__populations.csv",
@@ -56,10 +56,10 @@
       "columns": 2,
       "alerts": 0,
       "sha256_matches_independent": true,
-      "profile_ms_median": 1.16,
-      "profile_ms_p95": 1.22,
-      "rows_per_second": 229076,
-      "upload_to_page_ms_median": 5.1
+      "profile_ms_median": 1.58,
+      "profile_ms_p95": 1.69,
+      "rows_per_second": 168648,
+      "upload_to_page_ms_median": 6.3
     }
   ],
   "totals": {
@@ -73,6 +73,8 @@
     "defects_injected": 6,
     "defects_detected": 6,
     "missed": [],
-    "unexpected_alerts": []
+    "unexpected_alerts": [
+      "identical_columns"
+    ]
   }
 }
