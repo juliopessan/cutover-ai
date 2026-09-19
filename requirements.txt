@@ -1,3 +1,0 @@
-faker>=26.0
-pandas>=2.2
-pyarrow>=12.0

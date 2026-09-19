@@ -13,7 +13,7 @@ Cutover is a Python SDK and control plane that plans, maps and validates enterpr
 - **Audit by default:** every admitted, compressed or rejected token lands in a waste ledger with the reason.
 - **Onboarding first:** discovery cannot start until business, technical, security and target requirements are complete.
 
-Developer tools: see [RTK Integration](RTK.md) for repository helpers to install and initialize the `rtk` CLI for token-optimized command output.
+Developer tools: see [RTK Integration](docs/rtk/overview.md) for repository helpers to install and initialize the `rtk` CLI for token-optimized command output.
 
 ## Run as a SaaS
 
@@ -56,6 +56,20 @@ response = gateway.complete(CallEnvelope(
 A call with no score, an unknown tier or an exhausted budget raises `GuardianBlocked` and never reaches the provider. Tier caps live in [`dispatch.yaml`](src/cutover/governance/dispatch.yaml).
 
 [DeepSeek Harness](https://github.com/juliopessan/deepseek-harness) is a TypeScript agent runtime and is intentionally **not** vendored: Cutover talks to DeepSeek models through the API provider above. A `dsh` executor for sandboxed code generation was evaluated and deferred; see [docs/dsh-executor-evaluation.md](docs/dsh-executor-evaluation.md).
+
+## Repository layout
+
+```text
+src/cutover/          SDK, governance bridge, refinement policy and the web app (cutover.web)
+tests/                pytest suite; fixtures/ holds Apache-2.0 seeds from Cloudera's dbt example
+config/               economics and onboarding configuration
+scripts/scenarios/    per-scenario simulators (Cloudera/Fabric, Snowflake/Databricks, Oracle, SAP legacy)
+scripts/rtk/          RTK installers
+templates/            dashboard and report templates
+docs/                 design notes and guides (see docs/README.md)
+```
+
+`make install`, `make test`, `make lint`, `make serve` and `make pipelines` cover the common tasks.
 
 ## Design principles
 

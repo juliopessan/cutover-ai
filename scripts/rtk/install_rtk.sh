@@ -22,4 +22,4 @@ rm "$tmpfile"
 chmod +x "$OUT_DIR/rtk" || true
 
 echo "RTK installed to $OUT_DIR/rtk"
-echo "Add $(pwd)/$OUT_DIR to your PATH or use it via ./scripts/install_rtk.sh && ./$OUT_DIR/rtk"
+echo "Add $(pwd)/$OUT_DIR to your PATH or use it via ./scripts/rtk/install_rtk.sh && ./$OUT_DIR/rtk"

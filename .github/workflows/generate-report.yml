@@ -6,7 +6,7 @@ on:
     paths:
       - 'scripts/**'
       - 'templates/**'
-      - 'requirements.txt'
+      - 'pyproject.toml'
 
 jobs:
   build-report:
@@ -16,14 +16,14 @@ jobs:
       matrix:
         include:
           - pipeline: cloudera-fabric
-            synthetic_script: scripts/generate_cloudera_synthetic_data.py
-            simulate_script: scripts/simulate_cloudera_fabric_migration.py
-            report_script: scripts/generate_migration_report.py
+            synthetic_script: scripts/scenarios/cloudera_fabric/generate_cloudera_synthetic_data.py
+            simulate_script: scripts/scenarios/cloudera_fabric/simulate_cloudera_fabric_migration.py
+            report_script: scripts/scenarios/cloudera_fabric/generate_migration_report.py
             output_dir: outputs/cloudera-fabric
           - pipeline: snowflake-databricks
-            synthetic_script: scripts/generate_snowflake_synthetic_data.py
-            simulate_script: scripts/simulate_snowflake_databricks_migration.py
-            report_script: scripts/generate_snowflake_migration_report.py
+            synthetic_script: scripts/scenarios/snowflake_databricks/generate_snowflake_synthetic_data.py
+            simulate_script: scripts/scenarios/snowflake_databricks/simulate_snowflake_databricks_migration.py
+            report_script: scripts/scenarios/snowflake_databricks/generate_snowflake_migration_report.py
             output_dir: outputs/snowflake-databricks
     steps:
       - name: Checkout
@@ -58,7 +58,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install Python dependencies
-        run: pip install -r requirements.txt
+        run: pip install -e ".[scenarios]"
 
       - name: Generate synthetic data (via rtk)
         run: rtk python ${{ matrix.synthetic_script }}

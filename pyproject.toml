@@ -38,6 +38,8 @@ dev = [
   "httpx>=0.27",
 ]
 headroom = ["headroom-ai>=0.1"]
+# Extra libraries used by the scripts under scripts/scenarios.
+scenarios = ["pandas>=2.2", "pyarrow>=12.0"]
 # Tollgate is not yet on PyPI; install it from source until it is published.
 governance = ["tollgate @ git+https://github.com/juliopessan/toolgate.git"]
 deepseek = ["tollgate @ git+https://github.com/juliopessan/toolgate.git", "openai>=1.40"]

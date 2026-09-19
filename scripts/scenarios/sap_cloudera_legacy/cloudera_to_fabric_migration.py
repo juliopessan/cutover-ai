@@ -10,7 +10,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Any
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 if str(PROJECT_ROOT / "src") not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
@@ -407,7 +407,7 @@ def main():
     
     metastore_file = Path("outputs/sap-cloudera-legacy/synthetic_data/cloudera_metastore.json")
     if not metastore_file.exists():
-        print("❌ Metastore not found. Run generate_synthetic_cloudera_data.py first.")
+        print("❌ Metastore not found. Run scripts/scenarios/sap_cloudera_legacy/generate_synthetic_cloudera_data.py first.")
         return
     
     with open(metastore_file) as f:

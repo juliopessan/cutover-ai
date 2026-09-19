@@ -8,7 +8,7 @@ Quick steps
 - From the repository root run:
 
 ```bash
-python scripts/setup_rtk.py --generator copilot
+python scripts/rtk/setup_rtk.py --generator copilot
 ```
 
 Notes

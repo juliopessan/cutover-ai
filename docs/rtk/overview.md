@@ -5,8 +5,8 @@ This project includes helpers to install and initialize RTK (Rust Token Killer) 
 
 Install
 -------
-- Linux/macOS: `scripts/install_rtk.sh` (requires `jq` and `curl`)
-- Windows (PowerShell): `scripts/install_rtk.ps1`
+- Linux/macOS: `scripts/rtk/install_rtk.sh` (requires `jq` and `curl`)
+- Windows (PowerShell): `scripts/rtk/install_rtk.ps1`
 
 Project init
 ------------

@@ -8,3 +8,5 @@ __pycache__/
 outputs/
 .env
 dist/
+cutover-data/
+.tools/

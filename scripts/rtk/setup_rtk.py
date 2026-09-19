@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Helper to initialize RTK in this project.
-Usage: python scripts/setup_rtk.py --generator copilot
+Usage: python scripts/rtk/setup_rtk.py --generator copilot
 This script checks for the `rtk` CLI and runs `rtk init -g <generator>`.
 If `rtk` is not found, it prints install instructions (see https://github.com/rtk-ai/rtk).
 """
