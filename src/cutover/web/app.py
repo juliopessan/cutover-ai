@@ -56,6 +56,16 @@ def create_app(
     throttle = auth.LoginThrottle()
     templates = Jinja2Templates(directory=str(HERE / "templates"))
     templates.env.filters["br_int"] = lambda n: f"{n:,}".replace(",", ".")
+    def asset(path: str) -> str:
+        """Static URL with a content-version suffix, so a deploy never leaves a stale CSS or JS behind."""
+        file = HERE / "static" / path
+        try:
+            version = f"{int(file.stat().st_mtime):x}"
+        except OSError:
+            version = "0"
+        return f"/static/{path}?v={version}"
+
+    templates.env.globals["asset"] = asset
     templates.env.filters["br_usd"] = lambda n, d=6: f"{n:.{d}f}".replace(".", ",")
     templates.env.filters["br_dec"] = lambda n, digits=1: f"{n:.{digits}f}".replace(".", ",")
 
@@ -252,7 +262,7 @@ def create_app(
             return RedirectResponse("/login", status_code=303)
         datasets = list_datasets(user["id"])
         return render(request, "dashboard.html", datasets=datasets, targets=TARGETS, error=None,
-                      max_mb=MAX_UPLOAD_BYTES // (1024 * 1024))
+                      max_mb=MAX_UPLOAD_BYTES // (1024 * 1024), max_bytes=MAX_UPLOAD_BYTES)
 
     @app.post("/app/datasets")
     async def upload(request: Request, file: UploadFile = File(...), target: str = Form(...)) -> Response:
@@ -263,7 +273,7 @@ def create_app(
         def fail(message: str, status: int = 400) -> Response:
             datasets = list_datasets(user["id"])
             return render(request, "dashboard.html", status, datasets=datasets, targets=TARGETS,
-                          error=message, max_mb=MAX_UPLOAD_BYTES // (1024 * 1024))
+                          error=message, max_mb=MAX_UPLOAD_BYTES // (1024 * 1024), max_bytes=MAX_UPLOAD_BYTES)
 
         filename = Path(file.filename or "dataset.csv").name
         if target not in TARGETS:

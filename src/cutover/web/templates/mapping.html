@@ -4,7 +4,7 @@
 <main>
   <div class="app-head">
     <p class="eyebrow">Execução ao vivo · {{ target_label }}</p>
-    <h2>Sugestão de mapeamento para {{ dataset.filename }}</h2>
+    <h1 class="page" style="overflow-wrap: anywhere">Sugestão de mapeamento para {{ dataset.filename }}</h1>
     <p class="lede">Cada etapa do portão aparece aqui quando acontece. Nada é aplicado sem aprovação: a decisão continua <span class="voice">sua.</span></p>
     <p class="note">Enviamos ao modelo <b>apenas nomes e tipos de colunas</b>, nunca linhas de dados. Modelo: <code>{{ model }}</code>. Teto de orçamento por execução: US$ {{ '%.2f' | format(budget) | replace('.', ',') }}. Execuções restantes hoje: <span class="mono" id="runs-left">{{ runs_left }}</span>.</p>
   </div>
@@ -66,5 +66,5 @@
   </section>
   {% endif %}
 </main>
-<script src="/static/live.js" defer></script>
+<script src="{{ asset('live.js') }}" defer></script>
 {% endblock %}

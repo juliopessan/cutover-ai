@@ -1,8 +1,8 @@
 /* Cutover — Ledger design system. Clay and mint are reserved signals (see the ledger skill). */
 :root {
   --paper: #f2efe8; --paper-deep: #e7e3da; --rule: #d6d2c8;
-  --ink: #11110f; --ink-soft: #55524b; --ink-faint: #8a867c;
-  --clay: #ed6738; --clay-deep: #c8481c; --mint: #4f9c6b;
+  --ink: #11110f; --ink-soft: #55524b; --ink-faint: #666257;
+  --clay: #ed6738; --clay-deep: #b23d15; --mint: #4f9c6b;
   --ledger-bg: #14140f; --ledger-ink: #efece4; --ledger-dim: #85817a;
   --ledger-rule: #2c2b25; --ledger-mint: #8fcfa6;
   --display: "Inter Tight", "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -33,13 +33,19 @@ h1, h2, h3, p { margin: 0; }
 h1, h2, h3 { color: var(--ink); text-wrap: balance; }
 a { color: var(--ink); }
 code { font-family: var(--mono); font-size: 12px; color: var(--ink); overflow-wrap: anywhere; }
-:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; box-shadow: 0 0 0 4px var(--paper); }
+/* The ledger inset is near-black in both themes, so focus there flips to the light ink. */
+.ledger :focus-visible, .dark :focus-visible { outline-color: var(--ledger-ink); box-shadow: 0 0 0 4px var(--ledger-bg); }
+.skip { position: absolute; left: -9999px; top: 0; z-index: 10; background: var(--ink); color: var(--paper);
+  padding: 12px 18px; font-size: 14px; font-weight: 600; text-decoration: none; }
+.skip:focus { left: 0; }
 
 .page { max-width: 1100px; margin: 0 auto; padding: 0 40px; }
 .section { border-top: 1px solid var(--rule); padding: 68px 0; }
 .stack { display: flex; flex-direction: column; gap: 20px; }
 
 /* type */
+h1.page { font-size: clamp(28px, 3.6vw, 40px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.08; }
 h1.display { font-size: clamp(46px, 7vw, 88px); font-weight: 800; line-height: .98; letter-spacing: -0.035em; }
 h2 { font-size: clamp(28px, 3.6vw, 40px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.08; }
 h3 { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; }
@@ -201,6 +207,10 @@ button.btn:disabled { opacity: .45; cursor: not-allowed; }
 
 .decision { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--rule); display: flex; flex-direction: column; gap: 12px; }
 
+.bar { height: 4px; background: var(--rule); margin-top: 12px; }
+.bar span { display: block; height: 100%; width: 0; background: var(--ink); transition: width .2s ease; }
+.upload-error { color: var(--clay-deep); }
+
 /* auth + app */
 .auth { max-width: 420px; margin: 0 auto; padding: 72px 0 96px; }
 form.field-set { display: flex; flex-direction: column; gap: 18px; margin-top: 28px; }
@@ -227,4 +237,8 @@ input[type=file] { padding: 22px 14px; border-style: dashed; }
   .steps li { grid-template-columns: 36px 1fr; }
   .steps .status { grid-column: 2; }
   .nav-links a.hide-sm { display: none; }
+  /* On a phone the nav must fit one line: the e-mail is identity, not an action. */
+  .nav-links { gap: 14px; }
+  .nav-links a, .nav-links button { white-space: nowrap; }
+  .nav .crumb { display: none; }
 }

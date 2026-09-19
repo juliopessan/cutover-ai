@@ -170,7 +170,7 @@ def test_report_page_separates_measured_from_assumed(client):
     assert page.status_code == 200
     assert "Premissas não verificadas" in page.text and "Decisão pedida ao patrocinador" in page.text
     assert page.text.count("Handoff") == 7 and "Estimativa não verificada" in page.text
-    assert 'src="/static/report.js"' in page.text
+    assert "/static/report.js?v=" in page.text  # versioned so a deploy never serves stale JS
 
 
 def test_profile_measures_ranges_keys_decimal_shape_and_privacy_hints(tmp_path):
@@ -224,3 +224,56 @@ def test_identical_columns_are_flagged_by_content_not_by_name(tmp_path):
     path.write_text("a,b,c,e1,e2\n1,1,x,,\n2,2,y,,\n3,3,x,,\n", encoding="utf-8")
     kinds = {f.kind: f for f in profile_csv(path).flags}
     assert kinds["identical_columns"].items == ["a = b"]  # c differs; all-empty e1/e2 are not reported as twins
+
+
+def test_every_page_has_one_h1_and_a_skip_link(client):
+    signup(client)
+    client.post("/app/datasets", files={"file": ("d.csv", CSV)}, data={"target": "databricks"})
+    for url in ("/", "/app", "/app/datasets/1", "/app/datasets/1/mapping"):
+        page = client.get(url).text
+        assert page.count("<h1") == 1, url
+        assert 'class="skip"' in page and 'href="#conteudo"' in page, url
+        assert "<main" in page, url
+
+
+def test_report_pages_use_a_main_landmark_and_scrollable_tables(client):
+    signup(client)
+    client.post("/app/datasets", files={"file": ("d.csv", CSV)}, data={"target": "databricks"})
+    for url in ("/app/datasets/1/report", "/app/report", "/relatorio"):
+        page = client.get(url).text
+        assert page.count("<main") == 1 and page.count("</main>") == 1, url
+        assert page.count("<table") == page.count('class="scroller"') + page.count('class="tbl-wrap"'), url
+
+
+def test_contrast_tokens_meet_wcag_aa_on_the_light_ground():
+    """The faint ink and the clay flag label carry small text, so they need 4.5:1."""
+    from pathlib import Path
+
+    css = (Path("src/cutover/web/static/ledger.css")).read_text(encoding="utf-8")
+
+    def channel(value: float) -> float:
+        return value / 12.92 if value <= 0.03928 else ((value + 0.055) / 1.055) ** 2.4
+
+    def luminance(hexa: str) -> float:
+        r, g, b = (int(hexa[i:i + 2], 16) / 255 for i in (1, 3, 5))
+        return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
+
+    def contrast(a: str, b: str) -> float:
+        high, low = sorted((luminance(a), luminance(b)), reverse=True)
+        return (high + 0.05) / (low + 0.05)
+
+    def token(name: str) -> str:
+        import re
+        return re.search(rf"--{name}:\s*(#[0-9a-f]{{6}})", css).group(1)
+
+    paper, deep = token("paper"), token("paper-deep")
+    assert contrast(token("ink-faint"), paper) >= 4.5
+    assert contrast(token("ink-faint"), deep) >= 4.5   # table headers sit on the inset surface
+    assert contrast(token("clay-deep"), paper) >= 4.5  # the "not verified" label
+    assert contrast(token("ink-soft"), paper) >= 4.5
+
+
+def test_static_assets_are_versioned_against_stale_caches(client):
+    page = client.get("/").text
+    assert "/static/ledger.css?v=" in page
+    assert 'href="/static/ledger.css"' not in page

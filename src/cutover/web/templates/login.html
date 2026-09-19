@@ -3,7 +3,7 @@
 {% block content %}
 <main class="auth">
   <p class="eyebrow">{{ 'Acesso' if mode == 'login' else 'Nova conta' }}</p>
-  <h2>{{ 'Entre para enviar seus datasets.' if mode == 'login' else 'Crie sua conta.' }}</h2>
+  <h1 class="page">{{ 'Entre para enviar seus datasets.' if mode == 'login' else 'Crie sua conta.' }}</h1>
   <form class="field-set" method="post" action="/{{ mode }}">
     <label>E-mail<input type="email" name="email" required autocomplete="email" autofocus></label>
     <label>Senha<input type="password" name="password" required minlength="{{ 1 if mode == 'login' else 10 }}" autocomplete="{{ 'current-password' if mode == 'login' else 'new-password' }}"></label>

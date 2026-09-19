@@ -65,6 +65,18 @@ docs/                 notas e o relatório em PDF; docs/reports/
 - Toda rota, verificação e transição de estado nova precisa de teste.
 - Para regerar os benchmarks: **primeiro commite o código**, depois rode `make benchmark`, `make llm-benchmark` e `python scripts/benchmarks/project_stats.py` com a árvore limpa, e só então commite os JSONs. Assim o commit registrado é o do código medido.
 
+## Acessibilidade e UI
+
+- Contraste: texto pequeno precisa de 4.5:1. `tests/test_web.py::test_contrast_tokens_meet_wcag_aa_on_the_light_ground` trava os tokens; se mudar a paleta, rode os testes.
+- Toda página tem um único `<h1>`, um `<main>` e o link "Pular para o conteúdo" (`base.html`).
+- O anel de foco sobre o ledger escuro usa `--ledger-ink`; `--ink` é invisível ali.
+- Tabelas de relatório ficam dentro de `.scroller`, para rolarem em vez de espremerem colunas no celular.
+- CSS e JS são referenciados por `{{ asset('arquivo') }}`, que versiona pelo mtime e evita cache velho após deploy.
+
+## Ambiente: editable install no macOS
+
+O macOS marca o `.pth` do `pip install -e` como oculto e o Python 3.14 **ignora `.pth` ocultos**, então `import cutover` falha em silêncio. Os alvos do `make` rodam com `PYTHONPATH=src` e o `make install` desfaz a flag com `chflags nohidden`. Se `import cutover` falhar fora do make, é isso.
+
 ## Convenções
 
 - Texto voltado ao usuário (app, README, relatório) em português do Brasil, com acentuação correta. Código, comandos e identificadores em inglês.

@@ -6,7 +6,7 @@ body.report-body { background: var(--paper); }
 .rhead .brand { display: flex; align-items: center; gap: 12px; font-family: var(--mono); font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: var(--ink); }
 .rhead .brand img { width: 26px; height: 26px; }
 .rhead .tag { font-family: var(--mono); font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-faint); }
-.cover h1 { font-size: 44px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; margin: 8px 0 18px; }
+.cover h1 { font-size: clamp(28px, 6vw, 44px); overflow-wrap: anywhere; font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; margin: 8px 0 18px; }
 .cover .lede { font-size: 15px; max-width: 58ch; }
 .cover .gen { font-size: 13px; color: var(--ink-faint); max-width: 52ch; margin-top: 20px; }
 .meta { display: flex; flex-wrap: wrap; gap: 22px 40px; padding-top: 22px; margin-top: 30px; border-top: 1px solid var(--rule); }
@@ -39,7 +39,11 @@ body.report-body { background: var(--paper); }
 .sec p { font-size: 13.5px; line-height: 1.7; max-width: none; margin-bottom: 10px; }
 .sec ul, .sec ol { font-size: 13.5px; line-height: 1.7; padding-left: 22px; margin: 0 0 12px; }
 .sec hr { border: 0; border-top: 1px solid var(--rule); margin: 30px 0 0; }
-table.r { margin: 6px 0 14px; font-size: 12.5px; }
+table.r { margin: 6px 0 14px; font-size: 12.5px; min-width: 460px; }
+/* Report tables scroll in their own box rather than squeezing columns on a phone. */
+.scroller { overflow-x: auto; margin: 6px 0 14px; }
+.scroller table.r { margin: 0; }
+@media (max-width: 520px) { .scroller { border-right: 1px solid var(--rule); } }
 table.r th { background: var(--paper-deep); border: 1px solid var(--rule); padding: 8px 10px; }
 table.r td { border: 1px solid var(--rule); padding: 8px 10px; vertical-align: top; line-height: 1.5; }
 table.r td.k { font-weight: 700; color: var(--ink); }
@@ -54,7 +58,7 @@ table.r input { font: 600 12.5px var(--mono); width: 100%; max-width: 120px; pad
 .flow .arrow { stroke: var(--ink-faint); stroke-width: 1.2; fill: none; }
 .decision { margin: 12px 0; }
 .stat4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin: 14px 0 18px; }
-@media (max-width: 700px) { .stat4 { grid-template-columns: 1fr 1fr; } .doc { padding: 0 16px 48px; } .toolbar { padding: 16px 16px 0; } }
+@media (max-width: 700px) { .stat4 { grid-template-columns: 1fr 1fr; } .meta { gap: 18px 24px; } .meta dd { max-width: none; } .doc { padding: 0 16px 48px; } .toolbar { padding: 16px 16px 0; } }
 pre.payload { background: var(--paper-deep); padding: 12px 14px; font: 11.5px/1.55 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink); margin: 6px 0 14px; }
 @page { size: A4; margin: 14mm 12mm; }
 @media print {
@@ -70,4 +74,6 @@ pre.payload { background: var(--paper-deep); padding: 12px 14px; font: 11.5px/1.
   h3, h4, h5 { break-after: avoid; }
   .sec { padding-top: 0; }
   table.r input { border: 0; padding: 0; max-width: none; }
+  table.r { min-width: 0; }
+  .scroller { overflow: visible; border: 0; }
 }

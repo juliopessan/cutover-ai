@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter+Tight:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/static/ledger.css">
-<link rel="stylesheet" href="/static/report.css">
+<link rel="stylesheet" href="{{ asset('ledger.css') }}">
+<link rel="stylesheet" href="{{ asset('report.css') }}">
 </head>
 <body class="report-body">
 {% set alerts = profile.flags | length %}
@@ -21,7 +21,7 @@
     <a href="javascript:window.print()">Imprimir ou salvar em PDF</a>
   </span>
 </div>
-<div class="doc">
+<main class="doc">
 
 <header class="rhead"><span class="brand"><img src="/static/favicon.svg" alt="">Cutover</span><span class="tag">Relatório AS-IS / V1</span></header>
 <section class="cover">
@@ -58,7 +58,7 @@
   </ol>
   <hr>
   <h3 style="font-size: 18px; margin-bottom: 10px">Visão geral das seções</h3>
-  <table class="r">
+  <div class="scroller"><table class="r">
     <thead><tr><th>Seção</th><th>Fonte da evidência</th><th>Veredito</th><th>Nível de evidência</th></tr></thead>
     <tbody>
       <tr><td><b>Perfil</b></td><td>Cálculo sobre o arquivo</td><td><b>CONCLUÍDO</b></td><td>Medido</td></tr>
@@ -66,14 +66,14 @@
       <tr><td><b>Mapeamento</b></td><td>Modelo e verificações</td><td><b>{{ state | upper }}</b></td><td>{{ 'Sugestão do modelo, checagem medida' if run else '—' }}</td></tr>
       <tr><td><b>Custo e auditoria</b></td><td>Provedor e livro-razão</td><td><b>{{ 'REGISTRADO' if run else '—' }}</b></td><td>{{ 'Medido' if run else '—' }}</td></tr>
     </tbody>
-  </table>
+  </table></div>
 </section>
 
 <section class="sec">
   <div class="sec-head"><span class="n">01</span><p class="eyebrow">Perfil</p><h2>Perfil do dataset</h2></div>
   <h3 class="title">O que o arquivo contém, calculado dos bytes enviados</h3>
   <h4>1. Arquivo e estrutura</h4>
-  <table class="r">
+  <div class="scroller"><table class="r">
     <thead><tr><th>Parâmetro</th><th class="num">Valor</th></tr></thead>
     <tbody>
       <tr><td class="k">Linhas lidas</td><td class="num">{{ profile.rows | br_int }}</td></tr>
@@ -86,13 +86,13 @@
       <tr><td class="k">Codificação</td><td class="num">UTF-8</td></tr>
       <tr><td class="k">Tamanho do arquivo</td><td class="num">{{ dataset.size_bytes | br_int }} bytes</td></tr>
       <tr><td class="k">Colunas candidatas a chave</td><td class="num">{{ analysis.key_columns | join(', ') if analysis.key_columns else 'nenhuma' }}</td></tr>
-    </tbody></table>
+    </tbody></table></div>
   <h4>2. Indicadores de qualidade</h4>
-  <table class="r">
+  <div class="scroller"><table class="r">
     <thead><tr><th>Indicador</th><th class="num">Valor</th></tr></thead>
     <tbody>{% for label, value in analysis.quality %}
       <tr><td class="k">{{ label }}</td><td class="num">{{ (value * 100) | br_dec(1) }}%</td></tr>
-    {% endfor %}</tbody></table>
+    {% endfor %}</tbody></table></div>
   <p>Indicadores calculados dos dados; não medem se o conteúdo está correto para o negócio, só a forma do arquivo.</p>
   <h4>3. Colunas</h4>
   <div class="tbl-wrap"><table class="r">
@@ -142,11 +142,11 @@
       <tr><td class="k">{{ source }}</td><td>{{ entry if entry is string else (entry.target if entry else '—') }}</td><td>{{ '—' if entry is string else (entry.type if entry else '—') }}</td><td>{{ analysis.notes.get(source) or '—' }}</td></tr>
     {% endfor %}</tbody></table></div>
   <h4>2. Verificações determinísticas</h4>
-  <table class="r">
+  <div class="scroller"><table class="r">
     <thead><tr><th>Verificação</th><th>Resultado</th><th>Detalhe</th></tr></thead>
     <tbody>{% for c in run.checks %}
       <tr><td class="k">{{ c.name }}</td><td class="k">{{ 'Passou' if c.status == 'passed' else 'Reprovou' }}</td><td>{{ c.details }}{% if c.offenders %}: <code>{{ c.offenders | join('; ') }}</code>{% endif %}</td></tr>
-    {% endfor %}</tbody></table>
+    {% endfor %}</tbody></table></div>
   {% if run.pass_rate < 1 %}
   <div class="flag"><span class="flag-k">Verificações reprovadas</span><p>Esta sugestão não pode ser aprovada. Rejeite-a ou refaça a execução.</p></div>
   {% endif %}
@@ -159,7 +159,7 @@
   <div class="sec-head"><span class="n">04</span><p class="eyebrow">Custo</p><h2>Custo e auditoria</h2></div>
   <h3 class="title">O que a chamada de IA consumiu, medido pelo provedor</h3>
   {% if run %}
-  <table class="r">
+  <div class="scroller"><table class="r">
     <thead><tr><th>Parâmetro</th><th class="num">Valor</th><th>Fonte</th></tr></thead>
     <tbody>
       <tr><td class="k">Execução</td><td class="num">#{{ run.id }}</td><td>Banco de dados</td></tr>
@@ -173,7 +173,7 @@
       <tr><td class="k">Custo realizado (US$)</td><td class="num">{{ run.cost_usd | br_dec(6) }}</td><td>Tokens × preço acima</td></tr>
       <tr><td class="k">Latência da chamada</td><td class="num">{{ (run.latency_ms / 1000) | br_dec(1) }} s</td><td>Medido</td></tr>
       <tr><td class="k">Decisão da política de refinamento</td><td class="num">{{ run.policy_action }}</td><td>Cálculo determinístico</td></tr>
-    </tbody></table>
+    </tbody></table></div>
   <p>A chamada passou pelo portão de custo (score, nível, teto de tokens e orçamento) e foi gravada no livro-razão de auditoria.</p>
   {% if run.prompt %}
   <h4>Payload enviado ao modelo</h4>
@@ -182,11 +182,11 @@
   {% endif %}
   {% if history | length > 1 %}
   <h4>Histórico de execuções</h4>
-  <table class="r">
+  <div class="scroller"><table class="r">
     <thead><tr><th class="num">#</th><th>Data (UTC)</th><th>Estado</th><th class="num">Pass rate</th><th class="num">Custo (US$)</th><th>Decisão</th></tr></thead>
     <tbody>{% for r in history %}
       <tr><td class="num">{{ r.id }}</td><td>{{ r.created_at }}</td><td>{{ 'Concluída' if r.status == 'completed' else 'Falhou' }}</td><td class="num">{{ (r.pass_rate | br_dec(2)) if r.pass_rate is not none else '—' }}</td><td class="num">{{ (r.cost_usd | br_dec(6)) if r.cost_usd is not none else '—' }}</td><td>{{ {'approved': 'Aprovada', 'rejected': 'Rejeitada', 'pending': 'Aguardando'}.get(r.decision, r.decision) if r.status == 'completed' else '—' }}</td></tr>
-    {% endfor %}</tbody></table>
+    {% endfor %}</tbody></table></div>
   {% endif %}
   {% else %}
   <p>Sem chamadas de IA registradas para este dataset.</p>
@@ -199,21 +199,21 @@
   {% set e = analysis.economy %}
   {% if e %}
   <h4>1. Tempo medido</h4>
-  <table class="r">
+  <div class="scroller"><table class="r">
     <thead><tr><th>Etapa</th><th class="num">Tempo</th><th>Fonte</th></tr></thead>
     <tbody>
       <tr><td class="k">Perfil e sugestão da IA (execução completa)</td><td class="num">{{ e.ai_seconds | br_dec(1) }} s</td><td>Medido</td></tr>
       <tr><td class="k">Da sugestão até a decisão humana</td><td class="num">{% if e.review_seconds is not none %}{{ (e.review_seconds / 60) | br_dec(1) }} min{% else %}pendente{% endif %}</td><td>Medido; inclui tempo parado, então é limite superior do esforço de revisão</td></tr>
-    </tbody></table>
+    </tbody></table></div>
   <h4>2. Economia estimada (premissa)</h4>
-  <table class="r">
+  <div class="scroller"><table class="r">
     <thead><tr><th>Parâmetro</th><th class="num">Valor</th><th>Origem</th></tr></thead>
     <tbody>
       <tr><td class="k">Horas de um analista para o mesmo levantamento, à mão</td><td class="num">{{ e.manual_hours | br_dec(2) }} h</td><td>{% if e.manual_is_reported %}Informado pelo analista ({{ e.baseline_count }} {{ 'registro' if e.baseline_count == 1 else 'registros, mediana' }}){% else %}Premissa ilustrativa{% endif %}</td></tr>
       <tr><td class="k">Custo horário (carga total)</td><td class="num">US$ {{ e.rate_usd | br_dec(0) }}</td><td>Premissa ilustrativa</td></tr>
       <tr><td class="k">Horas devolvidas ao time neste dataset</td><td class="num">{% if e.saving_hours is not none %}{{ e.saving_hours | br_dec(2) }} h{% else %}depende da decisão{% endif %}</td><td>{{ 'Baseline informado' if e.manual_is_reported else 'Premissa' }} menos tempo medido</td></tr>
       <tr><td class="k">Economia estimada (descontado o custo de IA)</td><td class="num">{% if e.saving_usd is not none %}US$ {{ e.saving_usd | br_dec(0) }}{% else %}—{% endif %}</td><td>{{ 'Baseline informado; custo horário é premissa' if e.manual_is_reported else 'Premissa' }}</td></tr>
-    </tbody></table>
+    </tbody></table></div>
   {% if e.manual_is_reported %}
   <div class="flag"><span class="flag-k">Baseline informado, não verificado</span><p>As horas à mão foram <code>informadas pelo analista</code> (cronômetro do app ou minutos digitados); nenhum instrumento independente as mede. O custo horário continua sendo <code>premissa ilustrativa</code>.</p></div>
   {% else %}
@@ -239,13 +239,13 @@
     <p><code>Sugestão de modelo não é resultado reproduzível</code> e <code>o score que escolhe o nível é heurístico</code>. O perfil cobre apenas este arquivo, não o ambiente de origem.</p></div>
   <hr>
   <h4>Handoff</h4>
-  <table class="r"><thead><tr><th>Campo</th><th>Valor</th></tr></thead><tbody>
+  <div class="scroller"><table class="r"><thead><tr><th>Campo</th><th>Valor</th></tr></thead><tbody>
     <tr><td>Estado do mapeamento</td><td>{{ state }}</td></tr>
     <tr><td>Alertas em aberto</td><td>{{ alerts }}</td></tr>
     <tr><td>Colunas com possível dado pessoal (heurística)</td><td>{{ profile.privacy_hints | length }}</td></tr>
     <tr><td>Próximo passo recomendado</td><td>{{ 'Gerar a sugestão de mapeamento.' if not run else ('Decidir sobre a sugestão.' if run.decision == 'pending' else ('Tratar os alertas e usar o mapeamento aprovado.' if alerts else 'Usar o mapeamento aprovado.') if run.decision == 'approved' else 'Refazer a sugestão.') }}</td></tr>
-  </tbody></table>
+  </tbody></table></div>
 </section>
-</div>
+</main>
 </body>
 </html>

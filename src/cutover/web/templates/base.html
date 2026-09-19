@@ -13,9 +13,10 @@
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
 <link rel="manifest" href="/static/site.webmanifest">
 <meta name="theme-color" content="#14140f">
-<link rel="stylesheet" href="/static/ledger.css">
+<link rel="stylesheet" href="{{ asset('ledger.css') }}">
 </head>
 <body>
+<a class="skip" href="#conteudo">Pular para o conteúdo</a>
 <div class="page">
   <header class="nav">
     <a class="wordmark" href="/"><img src="/static/favicon.svg" alt="" width="26" height="26">Cutover</a>
@@ -32,7 +33,7 @@
       {% endif %}
     </nav>
   </header>
-  {% block content %}{% endblock %}
+  <div id="conteudo">{% block content %}{% endblock %}</div>
 </div>
 </body>
 </html>

@@ -8,12 +8,12 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter+Tight:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/static/ledger.css">
-<link rel="stylesheet" href="/static/report.css">
+<link rel="stylesheet" href="{{ asset('ledger.css') }}">
+<link rel="stylesheet" href="{{ asset('report.css') }}">
 </head>
 <body class="report-body">
 <div class="toolbar print-hide"><a href="/app">← Meus datasets</a><a href="javascript:window.print()">Imprimir ou salvar em PDF</a></div>
-<div class="doc">
+<main class="doc">
 <header class="rhead"><span class="brand"><img src="/static/favicon.svg" alt="">Cutover</span><span class="tag">Relatório consolidado / V1</span></header>
 {% if not c %}
 <section class="cover"><p class="eyebrow" style="margin-top: 26px">Relatório consolidado de assessment AS-IS</p><h1>Sem datasets</h1>
@@ -71,9 +71,9 @@
   <div class="sec-head"><span class="n">02</span><p class="eyebrow">Qualidade</p><h2>Alertas de qualidade</h2></div>
   <h3 class="title">O que se repete entre os datasets</h3>
   {% if c.alert_kinds %}
-  <table class="r">
+  <div class="scroller"><table class="r">
     <thead><tr><th>Tipo de alerta</th><th class="num">Ocorrências</th></tr></thead>
-    <tbody>{% for kind, n in c.alert_kinds %}<tr><td class="k">{{ {'column_names': 'Nomes de coluna incompatíveis com Delta', 'duplicate_columns': 'Colunas duplicadas (sem diferenciar maiúsculas)', 'identical_columns': 'Colunas com conteúdo idêntico', 'mixed_types': 'Colunas com tipos misturados', 'mostly_empty': 'Colunas majoritariamente vazias', 'duplicate_rows': 'Linhas duplicadas', 'malformed_rows': 'Linhas malformadas'}.get(kind, kind) }}</td><td class="num">{{ n }}</td></tr>{% endfor %}</tbody></table>
+    <tbody>{% for kind, n in c.alert_kinds %}<tr><td class="k">{{ {'column_names': 'Nomes de coluna incompatíveis com Delta', 'duplicate_columns': 'Colunas duplicadas (sem diferenciar maiúsculas)', 'identical_columns': 'Colunas com conteúdo idêntico', 'mixed_types': 'Colunas com tipos misturados', 'mostly_empty': 'Colunas majoritariamente vazias', 'duplicate_rows': 'Linhas duplicadas', 'malformed_rows': 'Linhas malformadas'}.get(kind, kind) }}</td><td class="num">{{ n }}</td></tr>{% endfor %}</tbody></table></div>
   <p>Alertas repetidos em vários datasets costumam ter uma causa comum na origem; vale tratá-los uma vez, na fonte.</p>
   {% else %}<p>Nenhum alerta foi gerado pelas verificações atuais.</p>{% endif %}
 </section>
@@ -88,9 +88,9 @@
     <p>Alinhe o tipo antes de integrar esses datasets no destino.</p></div>
   {% endif %}
   {% if c.shared %}
-  <table class="r">
+  <div class="scroller"><table class="r">
     <thead><tr><th>Coluna</th><th>Datasets</th><th>Tipo</th><th>Candidata a chave em</th></tr></thead>
-    <tbody>{% for x in c.shared %}<tr><td class="k">{{ x.column }}</td><td>{{ x.datasets | join(', ') }}</td><td>{{ x.types | join(', ') }}</td><td>{{ x.key_in | join(', ') if x.key_in else '—' }}</td></tr>{% endfor %}</tbody></table>
+    <tbody>{% for x in c.shared %}<tr><td class="k">{{ x.column }}</td><td>{{ x.datasets | join(', ') }}</td><td>{{ x.types | join(', ') }}</td><td>{{ x.key_in | join(', ') if x.key_in else '—' }}</td></tr>{% endfor %}</tbody></table></div>
   {% elif not c.conflicts %}<p>Nenhuma coluna de mesmo nome aparece em mais de um dataset.</p>{% endif %}
 </section>
 
@@ -107,7 +107,7 @@
 <section class="sec">
   <div class="sec-head"><span class="n">05</span><p class="eyebrow">Economia</p><h2>Tempo, custo e economia</h2></div>
   <h3 class="title">O que foi medido, o que foi informado e o que é premissa</h3>
-  <table class="r">
+  <div class="scroller"><table class="r">
     <thead><tr><th>Indicador</th><th class="num">Valor</th><th>Origem</th></tr></thead>
     <tbody>
       <tr><td class="k">Tempo de IA somado (perfil e sugestão)</td><td class="num">{{ c.ai_seconds | br_dec(0) }} s</td><td>Medido</td></tr>
@@ -117,7 +117,7 @@
       <tr><td class="k">Datasets com baseline manual informado</td><td class="num">{{ c.with_baseline }} de {{ c.decided }}</td><td>Informado pelo analista</td></tr>
       <tr><td class="k">Horas devolvidas ao time (somadas)</td><td class="num">{{ c.saving_hours | br_dec(2) }} h</td><td>{{ 'Baseline informado' if c.with_baseline == c.decided and c.decided else 'Mistura de baseline informado e premissa' }}</td></tr>
       <tr><td class="k">Economia estimada (US$)</td><td class="num">{{ c.saving_usd | br_dec(0) }}</td><td>Custo horário é premissa</td></tr>
-    </tbody></table>
+    </tbody></table></div>
   {% if c.with_baseline < c.decided %}
   <div class="flag"><span class="flag-k">Premissas não verificadas</span><p>{{ c.decided - c.with_baseline }} de {{ c.decided }} datasets decididos usam a <code>premissa ilustrativa de 2 h à mão</code>, e o custo horário é sempre <code>premissa ilustrativa</code>. Registre o baseline na tela de cada dataset.</p></div>
   {% else %}
@@ -125,14 +125,14 @@
   {% endif %}
   <hr>
   <h4>Handoff</h4>
-  <table class="r"><thead><tr><th>Campo</th><th>Valor</th></tr></thead><tbody>
+  <div class="scroller"><table class="r"><thead><tr><th>Campo</th><th>Valor</th></tr></thead><tbody>
     <tr><td>Datasets</td><td>{{ c.datasets }}</td></tr>
     <tr><td>Mapeamentos aprovados</td><td>{{ st.get('approved', 0) }} de {{ c.datasets }}</td></tr>
     <tr><td>Alertas em aberto</td><td>{{ c.alerts_total }}</td></tr>
     <tr><td>Próximo passo recomendado</td><td>{% set todo = [] %}{% if st.get('pending', 0) or st.get('none', 0) %}{% set _ = todo.append('decidir os mapeamentos pendentes') %}{% endif %}{% if c.alerts_total %}{% set _ = todo.append('tratar os alertas') %}{% endif %}{% if c.with_baseline < c.decided %}{% set _ = todo.append('registrar o baseline manual dos datasets restantes') %}{% endif %}{{ (todo | join('; ') | capitalize ~ '.') if todo else 'Usar os mapeamentos aprovados como insumo do destino.' }}</td></tr>
-  </tbody></table>
+  </tbody></table></div>
 </section>
 {% endif %}
-</div>
+</main>
 </body>
 </html>
