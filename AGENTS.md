@@ -48,7 +48,7 @@ docs/                 notas e o relatório em PDF; docs/reports/
 **Governança de custo**
 - Toda chamada de LLM passa pelo gateway do Tollgate (`cutover.governance.build_gateway`), normalmente via `GovernedAgent`. Nunca chame o provedor direto.
 - O teto de saída do nível vira o `max_tokens` da chamada. Tokens e custo vêm do provedor; um stream sem `usage` deve falhar, nunca ser estimado em silêncio.
-- Toda sugestão de modelo sai com `requires_approval` e passa por verificações determinísticas (`check_mapping`). O pass rate vem dessas verificações, nunca de uma nota que o modelo dá a si mesmo.
+- Toda sugestão de modelo sai com `requires_approval` e passa por verificações determinísticas (`check_mapping`). Cada execução é persistida em `mapping_runs`, e a aprovação humana só é aceita se todas as verificações passaram (`cutover.web.runs.decide`). O pass rate vem dessas verificações, nunca de uma nota que o modelo dá a si mesmo.
 
 **Medido versus assumido** (vale para UI, README, relatório e mensagens)
 - Não apresente como medido o que não foi calculado. Premissas e estimativas aparecem sinalizadas como tais.

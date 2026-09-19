@@ -15,6 +15,9 @@
     "Decantando", "Destrinchando", "Lapidando", "Tecendo", "Afinando", "Sondando", "Mastigando", "Esmiuçando",
     "Fermentando", "Alinhavando", "Peneirando", "Escavucando"];
   const FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+  const decisionBox = $("decision"), decisionText = $("decision-text"), actions = $("decision-actions"), after = $("decision-after");
+  const base = button.dataset.url.replace(/\/run$/, "");
+  let runId = null, lastChecksPassed = false;
   let timer = null, spin = null, started = 0, pending = null, stream = null, verbIndex = 0, frame = 0, lastVerb = "";
 
   const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; };
@@ -133,15 +136,34 @@
       case "summary":
         summary.hidden = false;
         countUp($("s-in"), ev.input_tokens, 0); countUp($("s-out"), ev.output_tokens, 0); countUp($("s-cost"), ev.cost_usd, 6); break;
+      case "saved":
+        runId = ev.run_id;
+        step("info", "Execução salva", `Registrada como #${ev.run_id}; o resultado não se perde ao recarregar a página.`, t);
+        break;
       case "error":
         settle(); step("bad", "Erro", ev.message, t); break;
     }
+    if (ev.type === "checks") lastChecksPassed = ev.pass_rate >= 1;
   }
+
+  async function decide(decision) {
+    if (!runId) return;
+    const body = new URLSearchParams({ decision });
+    const response = await fetch(`${base}/runs/${runId}/decision`, { method: "POST", body });
+    const data = await response.json();
+    decisionText.textContent = data.ok
+      ? (decision === "approved" ? "Sugestão aprovada e registrada." : "Sugestão rejeitada e registrada.")
+      : data.message;
+    if (data.ok) { actions.hidden = true; after.hidden = false; }
+  }
+  $("approve").addEventListener("click", () => decide("approved"));
+  $("reject").addEventListener("click", () => decide("rejected"));
 
   button.addEventListener("click", async () => {
     button.disabled = true;
     steps.replaceChildren(); summary.hidden = true; table.hidden = true; checks.replaceChildren(); idle.hidden = false;
     stages.forEach((s) => s.classList.remove("active", "done"));
+    decisionBox.hidden = true; after.hidden = true; actions.hidden = false; runId = null; lastChecksPassed = false;
     state.textContent = "Ao vivo"; state.classList.add("running");
     started = performance.now(); startVerbs();
     timer = setInterval(() => { clock.textContent = fmt((performance.now() - started) / 1000, 1) + " s"; }, 100);
@@ -169,6 +191,15 @@
       countUp($("s-time"), total, 1);
       stopVerbs("Concluído em " + fmt(total, 1) + " s");
       state.textContent = "Concluído"; state.classList.remove("running");
+      const left = $("runs-left"); if (left) left.textContent = String(Math.max(0, Number(left.textContent) - 1));
+      if (runId && table.hidden === false) {
+        decisionBox.hidden = false;
+        $("approve").disabled = !lastChecksPassed;
+        decisionText.textContent = lastChecksPassed
+          ? "Revise a sugestão e as verificações antes de decidir. Nada é aplicado automaticamente."
+          : "Há verificações reprovadas: esta sugestão não pode ser aprovada. Rejeite-a ou rode de novo.";
+        $("download-link").href = `${base}/runs/${runId}/download`;
+      }
       button.disabled = false; button.textContent = "Rodar de novo";
     }
   });

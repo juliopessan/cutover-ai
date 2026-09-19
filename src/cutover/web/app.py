@@ -8,19 +8,21 @@ import re
 import sqlite3
 import threading
 import uuid
+from datetime import UTC, datetime
 from pathlib import Path
 from collections.abc import Callable
 from typing import Any
 from urllib.parse import urlparse
 
 from fastapi import FastAPI, File, Form, Request, UploadFile
-from fastapi.responses import FileResponse, RedirectResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from cutover.governance.bridge import load_dispatch_tiers
 from cutover.web import auth
 from cutover.web.db import Database
+from cutover.web import runs as run_store
 from cutover.web.report import build_context
 from cutover.web.live import SESSION_BUDGET_USD, run_mapping_stream
 from cutover.web.profiling import ProfileError, profile_csv
@@ -108,6 +110,20 @@ def create_app(
 
     # ---- public ----------------------------------------------------------------
 
+    def list_datasets(user_id: int) -> list[dict[str, Any]]:
+        """The user's datasets with row/alert counts and the state of their mapping (pending, approved, rejected)."""
+        with db.connect() as conn:
+            rows = conn.execute(
+                "SELECT id, filename, target, size_bytes, created_at, profile_json, "
+                "(SELECT decision FROM mapping_runs m WHERE m.dataset_id = datasets.id AND m.status = 'completed' "
+                " ORDER BY (m.decision = 'approved') DESC, m.id DESC LIMIT 1) AS mapping "
+                "FROM datasets WHERE user_id = ? ORDER BY id DESC", (user_id,)).fetchall()
+        result = []
+        for row in rows:
+            profile = json.loads(row["profile_json"])
+            result.append({**dict(row), "rows": profile["rows"], "flags": len(profile["flags"])})
+        return result
+
     @app.get("/relatorio")
     def report(request: Request) -> Response:
         return render(request, "report.html", **build_context())
@@ -192,14 +208,7 @@ def create_app(
         user = current_user(request)
         if not user:
             return RedirectResponse("/login", status_code=303)
-        with db.connect() as conn:
-            rows = conn.execute(
-                "SELECT id, filename, target, size_bytes, created_at, profile_json FROM datasets "
-                "WHERE user_id = ? ORDER BY id DESC", (user["id"],)).fetchall()
-        datasets = []
-        for row in rows:
-            profile = json.loads(row["profile_json"])
-            datasets.append({**dict(row), "rows": profile["rows"], "flags": len(profile["flags"])})
+        datasets = list_datasets(user["id"])
         return render(request, "dashboard.html", datasets=datasets, targets=TARGETS, error=None,
                       max_mb=MAX_UPLOAD_BYTES // (1024 * 1024))
 
@@ -210,12 +219,7 @@ def create_app(
             return RedirectResponse("/login", status_code=303)
 
         def fail(message: str, status: int = 400) -> Response:
-            with db.connect() as conn:
-                rows = conn.execute(
-                    "SELECT id, filename, target, size_bytes, created_at, profile_json FROM datasets "
-                    "WHERE user_id = ? ORDER BY id DESC", (user["id"],)).fetchall()
-            datasets = [{**dict(r), "rows": json.loads(r["profile_json"])["rows"],
-                         "flags": len(json.loads(r["profile_json"])["flags"])} for r in rows]
+            datasets = list_datasets(user["id"])
             return render(request, "dashboard.html", status, datasets=datasets, targets=TARGETS,
                           error=message, max_mb=MAX_UPLOAD_BYTES // (1024 * 1024))
 
@@ -262,6 +266,7 @@ def create_app(
             return render(request, "notfound.html", 404)
         profile = json.loads(row["profile_json"])
         return render(request, "dataset.html", dataset=dict(row), profile=profile,
+                      run=run_store.best_run(db, dataset_id=dataset_id, user_id=user["id"]),
                       target_label=TARGETS.get(row["target"], row["target"]))
 
     # ---- live governed run -----------------------------------------------------
@@ -285,6 +290,7 @@ def create_app(
             return render(request, "notfound.html", 404)
         return render(request, "mapping.html", dataset=dict(row), target_label=TARGETS.get(row["target"]),
                       ready=live_ready(), runs_left=max(0, live_max_runs - runs_today(user["id"])),
+                      history=run_store.list_runs(db, dataset_id=dataset_id, user_id=user["id"]),
                       model=os.environ.get("DEEPSEEK_MODEL", "deepseek-flash"), budget=SESSION_BUDGET_USD)
 
     @app.post("/app/datasets/{dataset_id}/mapping/run")
@@ -305,17 +311,26 @@ def create_app(
             conn.execute("INSERT INTO live_runs(user_id, dataset_id) VALUES (?, ?)", (user["id"], dataset_id))
 
         events: queue.Queue[dict[str, Any] | None] = queue.Queue()
+        collected: list[dict[str, Any]] = []
+        model = os.environ.get("DEEPSEEK_MODEL", "deepseek-flash")
+
+        def emit(event: dict[str, Any]) -> None:
+            if event["type"] == "done":  # persist first so the screen can offer approval and the report
+                run_id = run_store.save_run(db, user_id=user["id"], dataset_id=dataset_id, model=model, events=collected)
+                events.put({"type": "saved", "run_id": run_id, "t_ms": event.get("t_ms", 0)})
+            elif event["type"] != "provider.delta":
+                collected.append(event)
+            events.put(event)
 
         def worker() -> None:
             try:
                 provider, price = make_provider()
                 run_mapping_stream(
                     profile=json.loads(row["profile_json"]), target=row["target"], dataset_id=dataset_id,
-                    db_path=data_dir / "ledger.db", provider=provider, pricing=price,
-                    model=os.environ.get("DEEPSEEK_MODEL", "deepseek-flash"), emit=events.put)
+                    db_path=data_dir / "ledger.db", provider=provider, pricing=price, model=model, emit=emit)
             except Exception as exc:  # setup failures (missing prices, bad key) still reach the screen
-                events.put({"type": "error", "message": f"{type(exc).__name__}: {exc}", "t_ms": 0})
-                events.put({"type": "done", "t_ms": 0})
+                emit({"type": "error", "message": f"{type(exc).__name__}: {exc}", "t_ms": 0})
+                emit({"type": "done", "t_ms": 0})
             finally:
                 events.put(None)
 
@@ -327,5 +342,47 @@ def create_app(
 
         return StreamingResponse(stream(), media_type="application/x-ndjson",
                                  headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
+
+    @app.post("/app/datasets/{dataset_id}/mapping/runs/{run_id}/decision")
+    async def mapping_decision(request: Request, dataset_id: int, run_id: int, decision: str = Form(...),
+                               note: str = Form("")) -> Response:
+        user = current_user(request)
+        if not user:
+            return JSONResponse({"ok": False, "message": "Faça login."}, status_code=401)
+        if decision not in {"approved", "rejected"}:
+            return JSONResponse({"ok": False, "message": "Decisão inválida."}, status_code=400)
+        ok, message = run_store.decide(db, run_id=run_id, user_id=user["id"], dataset_id=dataset_id,
+                                       decision=decision, note=note, who=user["email"])
+        return JSONResponse({"ok": ok, "message": message, "decision": decision if ok else None},
+                            status_code=200 if ok else 409)
+
+    @app.get("/app/datasets/{dataset_id}/mapping/runs/{run_id}/download")
+    def mapping_download(request: Request, dataset_id: int, run_id: int) -> Response:
+        user = current_user(request)
+        if not user:
+            return RedirectResponse("/login", status_code=303)
+        run = run_store.load_run(db, dataset_id=dataset_id, user_id=user["id"], run_id=run_id)
+        if run is None or run["status"] != "completed":
+            return Response("Execução não encontrada.", status_code=404)
+        return Response(run_store.mapping_csv(run), media_type="text/csv; charset=utf-8", headers={
+            "Content-Disposition": f'attachment; filename="mapeamento-{dataset_id}-{run_id}-{run["decision"]}.csv"'})
+
+    @app.get("/app/datasets/{dataset_id}/report")
+    def dataset_report(request: Request, dataset_id: int) -> Response:
+        user = current_user(request)
+        if not user:
+            return RedirectResponse("/login", status_code=303)
+        with db.connect() as conn:
+            row = conn.execute("SELECT * FROM datasets WHERE id = ? AND user_id = ?",
+                               (dataset_id, user["id"])).fetchone()
+        if not row:
+            return render(request, "notfound.html", 404)
+        run = run_store.best_run(db, dataset_id=dataset_id, user_id=user["id"])
+        return templates.TemplateResponse(request, "dataset_report.html", {
+            "dataset": dict(row), "profile": json.loads(row["profile_json"]), "run": run,
+            "target_label": TARGETS.get(row["target"], row["target"]), "user": user,
+            "runs_total": len(run_store.list_runs(db, dataset_id=dataset_id, user_id=user["id"])),
+            "generated_at": datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC"),
+        })
 
     return app

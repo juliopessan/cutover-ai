@@ -20,9 +20,9 @@
     <p class="eyebrow">Histórico</p>
     {% if datasets %}
     <div class="tbl-wrap"><table>
-      <thead><tr><th>Arquivo</th><th>Destino</th><th class="num">Linhas</th><th class="num">Alertas</th><th>Enviado em</th><th></th></tr></thead>
+      <thead><tr><th>Arquivo</th><th>Destino</th><th class="num">Linhas</th><th class="num">Alertas</th><th>Mapeamento</th><th>Enviado em</th><th></th></tr></thead>
       <tbody>{% for d in datasets %}
-        <tr><td class="name">{{ d.filename }}</td><td>{{ targets.get(d.target, d.target) }}</td><td class="num">{{ d.rows }}</td><td class="num">{{ '%02d' % d.flags }}</td><td class="mono">{{ d.created_at }}</td><td><a href="/app/datasets/{{ d.id }}">Abrir</a></td></tr>
+        <tr><td class="name">{{ d.filename }}</td><td>{{ targets.get(d.target, d.target) }}</td><td class="num">{{ d.rows }}</td><td class="num">{{ '%02d' % d.flags }}</td><td>{{ {'approved': 'Aprovado', 'rejected': 'Rejeitado', 'pending': 'Aguardando decisão'}.get(d.mapping, 'Sem sugestão') }}</td><td class="mono">{{ d.created_at }}</td><td><a href="/app/datasets/{{ d.id }}">Abrir</a> · <a href="/app/datasets/{{ d.id }}/report">Relatório</a></td></tr>
       {% endfor %}</tbody>
     </table></div>
     {% else %}<p class="empty">Nenhum dataset enviado ainda.</p>{% endif %}

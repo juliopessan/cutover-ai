@@ -33,6 +33,20 @@ CREATE TABLE IF NOT EXISTS live_runs (
     dataset_id INTEGER NOT NULL,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS mapping_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    dataset_id INTEGER NOT NULL REFERENCES datasets(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status TEXT NOT NULL,                       -- completed | failed
+    model TEXT, tier TEXT, score REAL,
+    input_tokens INTEGER, output_tokens INTEGER, cost_usd REAL, latency_ms INTEGER, elapsed_ms INTEGER,
+    pass_rate REAL, policy_action TEXT,
+    mappings_json TEXT, checks_json TEXT, error TEXT,
+    decision TEXT NOT NULL DEFAULT 'pending',   -- pending | approved | rejected
+    decision_note TEXT, decided_at TEXT, decided_by TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_mapping_runs_dataset ON mapping_runs(dataset_id, id DESC);
 CREATE INDEX IF NOT EXISTS idx_datasets_user ON datasets(user_id, id DESC);
 """
 

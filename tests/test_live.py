@@ -42,7 +42,7 @@ def test_live_run_streams_every_gate_step_in_order(tmp_path):
     client, location = make(tmp_path, provider)
     types = [e["type"] for e in events(client.post(location + "/mapping/run"))]
     assert types == ["run.start", "payload.built", "gate.scored", "gate.admitted", "provider.call",
-                     "provider.response", "gate.audited", "result", "checks", "policy", "summary", "done"]
+                     "provider.response", "gate.audited", "result", "checks", "policy", "summary", "saved", "done"]
     model, payload, kwargs = provider.calls[0]
     assert "unit price" in payload and "10.5" not in payload  # names and types only, never row values
     assert kwargs["max_tokens"] > 0
@@ -104,3 +104,60 @@ def test_extract_json_and_checks():
     assert checks["covers_all_columns"]["offenders"] == ["b"]
     assert checks["no_unknown_columns"]["offenders"] == ["z"]
     assert checks["delta_safe_names"]["status"] == "failed" and checks["valid_types"]["status"] == "failed"
+
+
+def run_once(client, location):
+    evs = events(client.post(location + "/mapping/run"))
+    return next(e["run_id"] for e in evs if e["type"] == "saved"), evs
+
+
+def test_run_is_persisted_and_survives_reload(tmp_path):
+    client, location = make(tmp_path, FakeProvider())
+    run_id, _ = run_once(client, location)
+    page = client.get(location + "/mapping").text
+    assert "Execuções anteriores" in page and f'<td class="num">{run_id}</td>' in page
+
+
+def test_approve_then_report_and_download(tmp_path):
+    client, location = make(tmp_path, FakeProvider())
+    run_id, _ = run_once(client, location)
+    assert client.post(f"{location}/mapping/runs/{run_id}/decision", data={"decision": "approved", "note": "ok"}).json()["ok"]
+    csv_text = client.get(f"{location}/mapping/runs/{run_id}/download")
+    assert csv_text.headers["content-type"].startswith("text/csv")
+    assert "unit price,unit_price,double,approved" in csv_text.text
+    report = client.get(location + "/report").text
+    assert "Relatório de assessment AS-IS" in report and "Aprovado" in report and "unit_price" in report
+    assert "a@example.com" in report
+    assert "Aprovado" in client.get("/app").text
+
+
+def test_cannot_approve_when_checks_failed(tmp_path):
+    client, location = make(tmp_path, FakeProvider('{"id": "same", "unit price": "same"}'))
+    run_id, _ = run_once(client, location)
+    response = client.post(f"{location}/mapping/runs/{run_id}/decision", data={"decision": "approved"})
+    assert response.status_code == 409 and not response.json()["ok"]
+    assert client.post(f"{location}/mapping/runs/{run_id}/decision", data={"decision": "rejected"}).json()["ok"]
+    assert "Rejeitado" in client.get(location + "/report").text
+
+
+def test_failed_run_is_saved_but_cannot_be_decided(tmp_path):
+    class Broken:
+        def complete(self, **kwargs):
+            raise RuntimeError("upstream 500")
+
+    client, location = make(tmp_path, Broken())
+    run_id, _ = run_once(client, location)
+    assert client.post(f"{location}/mapping/runs/{run_id}/decision", data={"decision": "approved"}).status_code == 409
+    assert client.get(f"{location}/mapping/runs/{run_id}/download").status_code == 404
+    assert "Falhou" in client.get(location + "/mapping").text
+
+
+def test_report_without_a_run_and_ownership(tmp_path):
+    client, location = make(tmp_path, FakeProvider())
+    assert "Sem sugestão" in client.get(location + "/report").text
+    run_id, _ = run_once(client, location)
+    client.post("/logout")
+    client.post("/signup", data={"email": "b@example.com", "password": "correct-horse-1"})
+    assert client.get(location + "/report").status_code == 404
+    assert client.get(f"{location}/mapping/runs/{run_id}/download").status_code == 404
+    assert client.post(f"{location}/mapping/runs/{run_id}/decision", data={"decision": "approved"}).status_code == 409

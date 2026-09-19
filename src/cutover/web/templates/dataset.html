@@ -56,6 +56,6 @@
       {% endfor %}</tbody>
     </table></div>
   </section>
-  <div class="cta-row" style="padding-bottom: 56px"><a class="btn" href="/app/datasets/{{ dataset.id }}/mapping">Sugerir mapeamento com IA</a><a class="btn ghost" href="/app">← Voltar aos datasets</a></div>
+  <div class="cta-row" style="padding-bottom: 56px"><a class="btn" href="/app/datasets/{{ dataset.id }}/mapping">{{ 'Ver ou refazer o mapeamento' if run else 'Sugerir mapeamento com IA' }}</a><a class="btn ghost" href="/app/datasets/{{ dataset.id }}/report">Gerar relatório</a><a class="btn ghost" href="/app">← Voltar aos datasets</a></div>
 </main>
 {% endblock %}

@@ -30,8 +30,9 @@ O Cutover está em alfa. Abaixo, o que já dá para usar e o que ainda está sen
 | Upload e perfil | O app web perfila um CSV: linhas, tipos, células vazias, duplicatas, SHA-256 e nomes de coluna compatíveis com Delta. Nada é enviado a um LLM | Disponível |
 | Chamadas de IA governadas | `GovernedAgent` e `MappingSuggestionAgent` passam toda chamada pelo gateway do Tollgate; as sugestões saem com `requires_approval` | Disponível (SDK) |
 | Mapeamento ao vivo | No app, “Sugerir mapeamento com IA” roda uma chamada governada e mostra cada etapa em tempo real: score, nível, portão, chamada, tokens, custo e verificações determinísticas. Só nomes e tipos de colunas vão ao modelo | Disponível (web) |
+| Aprovação e relatório | Cada execução é salva; uma pessoa aprova ou rejeita a sugestão (a aprovação só é permitida se todas as verificações passaram), baixa o mapeamento em CSV e gera o relatório AS-IS do dataset, pronto para PDF | Disponível (web) |
 | Política de refinamento | `ArtifactBranch` decide aceitar, refinar, escalar, paralelizar ou parar, por pass rate e custo | Disponível (SDK), ainda não ligado aos agentes |
-| Plano de migração e validação | Planos por destino e reconciliação entre origem e destino | Em desenvolvimento |
+| Relatório consolidado por cliente | Consolidação dos achados de vários datasets | Em desenvolvimento |
 
 Extração, implantação e virada nunca são automáticas; veja o [limite de segurança](#limite-de-segurança).
 

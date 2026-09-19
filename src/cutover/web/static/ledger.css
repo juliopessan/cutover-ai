@@ -199,6 +199,8 @@ button.btn:disabled { opacity: .45; cursor: not-allowed; }
   @page { margin: 14mm; }
 }
 
+.decision { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--rule); display: flex; flex-direction: column; gap: 12px; }
+
 /* auth + app */
 .auth { max-width: 420px; margin: 0 auto; padding: 72px 0 96px; }
 form.field-set { display: flex; flex-direction: column; gap: 18px; margin-top: 28px; }

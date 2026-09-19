@@ -6,10 +6,11 @@
     <p class="eyebrow">Execução ao vivo · {{ target_label }}</p>
     <h2>Sugestão de mapeamento para {{ dataset.filename }}</h2>
     <p class="lede">Cada etapa do portão aparece aqui quando acontece. Nada é aplicado sem aprovação: a decisão continua <span class="voice">sua.</span></p>
-    <p class="note">Enviamos ao modelo <b>apenas nomes e tipos de colunas</b>, nunca linhas de dados. Modelo: <code>{{ model }}</code>. Teto de orçamento por execução: US$ {{ '%.2f' | format(budget) | replace('.', ',') }}. Execuções restantes hoje: <span class="mono">{{ runs_left }}</span>.</p>
+    <p class="note">Enviamos ao modelo <b>apenas nomes e tipos de colunas</b>, nunca linhas de dados. Modelo: <code>{{ model }}</code>. Teto de orçamento por execução: US$ {{ '%.2f' | format(budget) | replace('.', ',') }}. Execuções restantes hoje: <span class="mono" id="runs-left">{{ runs_left }}</span>.</p>
   </div>
   <div class="cta-row" style="margin-bottom: 28px">
     <button class="btn" id="run" type="button" data-url="/app/datasets/{{ dataset.id }}/mapping/run" {% if not ready or runs_left == 0 %}disabled{% endif %}>Rodar com DeepSeek</button>
+    <a class="btn ghost" href="/app/datasets/{{ dataset.id }}/report">Gerar relatório</a>
     <a class="btn ghost" href="/app/datasets/{{ dataset.id }}">Voltar ao perfil</a>
   </div>
   {% if not ready %}<div class="flag" style="margin-bottom: 28px"><span class="flag-k">Chave ausente</span><p>Defina <code>DEEPSEEK_API_KEY</code> no <code>.env</code> e reinicie o servidor.</p></div>{% endif %}
@@ -36,8 +37,34 @@
         <thead><tr><th>Coluna de origem</th><th>Destino sugerido</th><th>Tipo</th></tr></thead><tbody></tbody>
       </table></div>
       <div id="checks" class="flags"></div>
+      <div id="decision" class="decision" hidden>
+        <p class="eyebrow">Sua decisão</p>
+        <p class="note" id="decision-text">Revise a sugestão e as verificações antes de decidir.</p>
+        <div class="cta-row" id="decision-actions">
+          <button class="btn" type="button" id="approve">Aprovar sugestão</button>
+          <button class="btn ghost" type="button" id="reject">Rejeitar</button>
+        </div>
+        <div class="cta-row" id="decision-after" hidden>
+          <a class="btn" id="report-link" href="/app/datasets/{{ dataset.id }}/report">Gerar relatório</a>
+          <a class="btn ghost" id="download-link" href="#">Baixar mapeamento (CSV)</a>
+        </div>
+      </div>
     </div>
   </div>
+  {% if history %}
+  <section class="section">
+    <p class="eyebrow">Execuções anteriores</p>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th class="num">#</th><th>Data</th><th>Estado</th><th class="num">Pass rate</th><th class="num">Custo (US$)</th><th>Decisão</th><th></th></tr></thead>
+      <tbody>{% for r in history %}
+        <tr><td class="num">{{ r.id }}</td><td class="mono">{{ r.created_at }}</td><td>{{ 'Concluída' if r.status == 'completed' else 'Falhou' }}</td>
+          <td class="num">{{ (r.pass_rate | br_dec(2)) if r.pass_rate is not none else '—' }}</td>
+          <td class="num">{{ (r.cost_usd | br_dec(6)) if r.cost_usd is not none else '—' }}</td>
+          <td>{{ {'approved': 'Aprovada', 'rejected': 'Rejeitada', 'pending': 'Aguardando'}.get(r.decision, r.decision) if r.status == 'completed' else '—' }}</td>
+          <td>{% if r.status == 'completed' %}<a href="/app/datasets/{{ dataset.id }}/mapping/runs/{{ r.id }}/download">CSV</a>{% endif %}</td></tr>
+      {% endfor %}</tbody></table></div>
+  </section>
+  {% endif %}
 </main>
 <script src="/static/live.js" defer></script>
 {% endblock %}

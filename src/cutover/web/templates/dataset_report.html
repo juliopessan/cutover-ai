@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relatório AS-IS: {{ dataset.filename }} — Cutover</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter+Tight:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/ledger.css">
+<link rel="stylesheet" href="/static/report.css">
+</head>
+<body class="report-body">
+{% set alerts = profile.flags | length %}
+{% set state = {'approved': 'Aprovado', 'rejected': 'Rejeitado', 'pending': 'Aguardando decisão'}.get(run.decision if run else None, 'Sem sugestão') %}
+<div class="toolbar print-hide">
+  <a href="/app/datasets/{{ dataset.id }}">← Voltar ao dataset</a>
+  <span>
+    {% if run %}<a href="/app/datasets/{{ dataset.id }}/mapping/runs/{{ run.id }}/download">Baixar mapeamento (CSV)</a> · {% endif %}
+    <a href="javascript:window.print()">Imprimir ou salvar em PDF</a>
+  </span>
+</div>
+<div class="doc">
+
+<header class="rhead"><span class="brand"><img src="/static/favicon.svg" alt="">Cutover</span><span class="tag">Relatório AS-IS / V1</span></header>
+<section class="cover">
+  <p class="eyebrow" style="margin-top: 26px">Relatório de assessment AS-IS · {{ target_label }}</p>
+  <h1 style="word-break: break-word">{{ dataset.filename }}</h1>
+  <p class="lede">Estado atual deste dataset, levantado com IA e entregue sem migrar de plataforma. O perfil é calculado do arquivo enviado; o mapeamento é uma sugestão de modelo que só vale depois da decisão de uma pessoa.</p>
+  <dl class="meta">
+    <div><dt>Dataset</dt><dd>{{ dataset.filename }}</dd></div>
+    <div><dt>Destino</dt><dd>{{ target_label }}</dd></div>
+    <div><dt>Enviado em</dt><dd>{{ dataset.created_at }} UTC</dd></div>
+    <div><dt>Gerado em</dt><dd>{{ generated_at }}</dd></div>
+    <div><dt>Preparado para</dt><dd>{{ user.email }}</dd></div>
+    <div><dt>Mapeamento</dt><dd>{{ state }}</dd></div>
+    <div><dt>SHA-256 do arquivo</dt><dd class="mono" style="font-size: 10.5px; word-break: break-all; max-width: 60ch">{{ profile.sha256 }}</dd></div>
+  </dl>
+</section>
+
+<section class="dark">
+  <p class="eyebrow">Resumo executivo</p>
+  <h2 style="font-size: 26px; letter-spacing: -0.02em; margin-bottom: 16px">Resumo executivo: {{ dataset.filename }}</h2>
+  <p>O arquivo tem <b>{{ profile.rows | br_int }} linhas</b> e <b>{{ profile.columns | length }} colunas</b>. O perfil determinístico gerou <b>{{ alerts }} {{ 'alerta' if alerts == 1 else 'alertas' }}</b>{% if alerts %}, que precisam de tratamento antes de qualquer uso no destino{% endif %}. Nenhuma linha de dados foi enviada a um modelo de IA.</p>
+  {% if run %}
+  <p>A sugestão de mapeamento para {{ target_label }} passou em <b>{{ (run.pass_rate * 100) | br_dec(0) }}%</b> das verificações determinísticas e está <b>{{ state | lower }}</b>{% if run.decision != 'pending' %} ({{ run.decided_by }}, {{ run.decided_at }} UTC){% endif %}. A execução custou <b>US$ {{ run.cost_usd | br_dec(6) }}</b>.</p>
+  {% else %}
+  <p>Ainda não há sugestão de mapeamento para este dataset.</p>
+  {% endif %}
+  <h3 style="font-size: 15px; margin: 22px 0 10px">Decisão pedida</h3>
+  <ol>
+    {% if not run %}<li><b>Gerar a sugestão de mapeamento</b> na tela do dataset e revisá-la.</li>
+    {% elif run.decision == 'pending' %}<li><b>Revisar e decidir</b> a sugestão de mapeamento (aprovar ou rejeitar) na tela do dataset.</li>
+    {% elif run.decision == 'approved' %}<li><b>Usar o mapeamento aprovado</b> (CSV disponível para download) como insumo do destino.</li>
+    {% else %}<li><b>Refazer a sugestão</b>: a anterior foi rejeitada.</li>{% endif %}
+    {% if alerts %}<li><b>Tratar os {{ alerts }} alertas do perfil</b> listados na seção 02.</li>{% endif %}
+  </ol>
+  <hr>
+  <h3 style="font-size: 18px; margin-bottom: 10px">Visão geral das seções</h3>
+  <table class="r">
+    <thead><tr><th>Seção</th><th>Fonte da evidência</th><th>Veredito</th><th>Nível de evidência</th></tr></thead>
+    <tbody>
+      <tr><td><b>Perfil</b></td><td>Cálculo sobre o arquivo</td><td><b>CONCLUÍDO</b></td><td>Medido</td></tr>
+      <tr><td><b>Alertas</b></td><td>Verificações do perfil</td><td><b>{{ 'ATENÇÃO (' ~ alerts ~ ')' if alerts else 'SEM ALERTAS' }}</b></td><td>Medido</td></tr>
+      <tr><td><b>Mapeamento</b></td><td>Modelo e verificações</td><td><b>{{ state | upper }}</b></td><td>{{ 'Sugestão do modelo, checagem medida' if run else '—' }}</td></tr>
+      <tr><td><b>Custo e auditoria</b></td><td>Provedor e livro-razão</td><td><b>{{ 'REGISTRADO' if run else '—' }}</b></td><td>{{ 'Medido' if run else '—' }}</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="sec">
+  <div class="sec-head"><span class="n">01</span><p class="eyebrow">Perfil</p><h2>Perfil do dataset</h2></div>
+  <h3 class="title">O que o arquivo contém, calculado dos bytes enviados</h3>
+  <table class="r">
+    <thead><tr><th>Parâmetro</th><th class="num">Valor</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Linhas</td><td class="num">{{ profile.rows | br_int }}</td></tr>
+      <tr><td class="k">Colunas</td><td class="num">{{ profile.columns | length }}</td></tr>
+      <tr><td class="k">Células preenchidas</td><td class="num">{{ profile.filled_cells | default(profile.total_cells - profile.empty_cells) | br_int }}</td></tr>
+      <tr><td class="k">Células vazias</td><td class="num">{{ profile.empty_cells | br_int }}</td></tr>
+      <tr><td class="k">Linhas duplicadas</td><td class="num">{{ profile.duplicate_rows | br_int }}</td></tr>
+      <tr><td class="k">Tamanho do arquivo</td><td class="num">{{ dataset.size_bytes | br_int }} bytes</td></tr>
+    </tbody></table>
+  <h4>Colunas</h4>
+  <div class="tbl-wrap"><table class="r">
+    <thead><tr><th>Coluna</th><th>Tipo inferido</th><th class="num">Vazias</th><th class="num">% vazia</th></tr></thead>
+    <tbody>{% for c in profile.columns %}
+      <tr><td class="k">{{ c.name }}</td><td>{{ c.type }}</td><td class="num">{{ c.nulls | br_int }}</td><td class="num">{{ (c.null_ratio * 100) | br_dec(1) }}</td></tr>
+    {% endfor %}</tbody></table></div>
+</section>
+
+<section class="sec">
+  <div class="sec-head"><span class="n">02</span><p class="eyebrow">Alertas</p><h2>Alertas do perfil</h2></div>
+  <h3 class="title">O que precisa de atenção antes de usar este dataset</h3>
+  {% if profile.flags %}
+  <div class="flags">
+    {% for f in profile.flags %}
+    <div class="flag"><span class="flag-k">{{ f.title }}</span>
+      <p>{% for item in f['items'] %}<code>{{ item }}</code>{{ ', ' if not loop.last }}{% endfor %}</p>
+      <p>{{ f.action }}</p></div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p>Nenhum alerta foi gerado pelas verificações atuais.</p>
+  {% endif %}
+</section>
+
+<section class="sec">
+  <div class="sec-head"><span class="n">03</span><p class="eyebrow">Mapeamento</p><h2>Mapeamento sugerido</h2></div>
+  <h3 class="title">Sugestão do modelo para {{ target_label }}, com verificações determinísticas</h3>
+  {% if run %}
+  <p>Esta é uma <b>sugestão de modelo</b>: só as verificações abaixo são calculadas. Estado: <b>{{ state }}</b>{% if run.decision != 'pending' %} por {{ run.decided_by }} em {{ run.decided_at }} UTC{% endif %}.{% if run.decision_note %} Nota: {{ run.decision_note }}{% endif %}</p>
+  <h4>1. Mapeamento</h4>
+  <div class="tbl-wrap"><table class="r">
+    <thead><tr><th>Coluna de origem</th><th>Destino sugerido</th><th>Tipo</th></tr></thead>
+    <tbody>{% for source, entry in run.mappings.items() %}
+      <tr><td class="k">{{ source }}</td><td>{{ entry if entry is string else (entry.target if entry else '—') }}</td><td>{{ '—' if entry is string else (entry.type if entry else '—') }}</td></tr>
+    {% endfor %}</tbody></table></div>
+  <h4>2. Verificações determinísticas</h4>
+  <table class="r">
+    <thead><tr><th>Verificação</th><th>Resultado</th><th>Detalhe</th></tr></thead>
+    <tbody>{% for c in run.checks %}
+      <tr><td class="k">{{ c.name }}</td><td class="k">{{ 'Passou' if c.status == 'passed' else 'Reprovou' }}</td><td>{{ c.details }}{% if c.offenders %}: <code>{{ c.offenders | join('; ') }}</code>{% endif %}</td></tr>
+    {% endfor %}</tbody></table>
+  {% if run.pass_rate < 1 %}
+  <div class="flag"><span class="flag-k">Verificações reprovadas</span><p>Esta sugestão não pode ser aprovada. Rejeite-a ou refaça a execução.</p></div>
+  {% endif %}
+  {% else %}
+  <div class="flag"><span class="flag-k">Sem sugestão</span><p>Nenhuma sugestão de mapeamento foi gerada para este dataset. Use “Sugerir mapeamento com IA” na tela do dataset.</p></div>
+  {% endif %}
+</section>
+
+<section class="sec">
+  <div class="sec-head"><span class="n">04</span><p class="eyebrow">Custo</p><h2>Custo e auditoria</h2></div>
+  <h3 class="title">O que a chamada de IA consumiu, medido pelo provedor</h3>
+  {% if run %}
+  <table class="r">
+    <thead><tr><th>Parâmetro</th><th class="num">Valor</th><th>Fonte</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Modelo</td><td class="num">{{ run.model }}</td><td>Configuração</td></tr>
+      <tr><td class="k">Score e nível</td><td class="num">{{ run.score | br_dec(0) }} · {{ run.tier }}</td><td>Heurístico (a calibrar)</td></tr>
+      <tr><td class="k">Tokens de entrada</td><td class="num">{{ run.input_tokens | br_int }}</td><td>Medido pelo provedor</td></tr>
+      <tr><td class="k">Tokens de saída</td><td class="num">{{ run.output_tokens | br_int }}</td><td>Medido pelo provedor</td></tr>
+      <tr><td class="k">Custo (US$)</td><td class="num">{{ run.cost_usd | br_dec(6) }}</td><td>Tokens × preço configurado</td></tr>
+      <tr><td class="k">Latência da chamada</td><td class="num">{{ (run.latency_ms / 1000) | br_dec(1) }} s</td><td>Medido</td></tr>
+      <tr><td class="k">Decisão da política de refinamento</td><td class="num">{{ run.policy_action }}</td><td>Cálculo determinístico</td></tr>
+      <tr><td class="k">Execuções registradas neste dataset</td><td class="num">{{ runs_total }}</td><td>Banco de dados</td></tr>
+    </tbody></table>
+  <p>A chamada passou pelo portão de custo (score, nível, teto de tokens e orçamento) e foi gravada no livro-razão de auditoria.</p>
+  {% else %}
+  <p>Sem chamadas de IA registradas para este dataset.</p>
+  {% endif %}
+</section>
+
+<section class="sec">
+  <div class="sec-head"><span class="n">05</span><p class="eyebrow">Próximos passos</p><h2>Próximos passos e limitações</h2></div>
+  <h3 class="title">O que fazer com este resultado</h3>
+  <ol>
+    {% if not run %}<li>Gerar e revisar a sugestão de mapeamento.</li>
+    {% elif run.decision == 'pending' %}<li>Revisar a sugestão e decidir: aprovar ou rejeitar.</li>
+    {% elif run.decision == 'approved' %}<li>Usar o CSV do mapeamento aprovado como insumo do destino; aplicá-lo está fora do escopo do AI-IS.</li>
+    {% else %}<li>Refazer a sugestão de mapeamento.</li>{% endif %}
+    {% for f in profile.flags %}<li>{{ f.title }}: {{ f.action }}</li>{% endfor %}
+  </ol>
+  <div class="flag"><span class="flag-k">Limitações</span>
+    <p><code>Sugestão de modelo não é resultado reproduzível</code> e <code>o score que escolhe o nível é heurístico</code>. O perfil cobre apenas este arquivo, não o ambiente de origem.</p></div>
+  <hr>
+  <h4>Handoff</h4>
+  <table class="r"><thead><tr><th>Campo</th><th>Valor</th></tr></thead><tbody>
+    <tr><td>Estado do mapeamento</td><td>{{ state }}</td></tr>
+    <tr><td>Alertas em aberto</td><td>{{ alerts }}</td></tr>
+    <tr><td>Próximo passo recomendado</td><td>{{ 'Gerar a sugestão de mapeamento.' if not run else ('Decidir sobre a sugestão.' if run.decision == 'pending' else 'Tratar os alertas e usar o mapeamento aprovado.' if run.decision == 'approved' else 'Refazer a sugestão.') }}</td></tr>
+  </tbody></table>
+</section>
+</div>
+</body>
+</html>
