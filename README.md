@@ -43,7 +43,7 @@ response = gateway.complete(CallEnvelope(
 
 A call with no score, an unknown tier or an exhausted budget raises `GuardianBlocked` and never reaches the provider. Tier caps live in [`dispatch.yaml`](src/cutover/governance/dispatch.yaml).
 
-[DeepSeek Harness](https://github.com/juliopessan/deepseek-harness) is a TypeScript agent runtime and is intentionally **not** vendored: Cutover talks to DeepSeek models through the API provider above. A `dsh`-based executor can be added behind the same `ProviderClient` contract.
+[DeepSeek Harness](https://github.com/juliopessan/deepseek-harness) is a TypeScript agent runtime and is intentionally **not** vendored: Cutover talks to DeepSeek models through the API provider above. A `dsh` executor for sandboxed code generation was evaluated and deferred; see [docs/dsh-executor-evaluation.md](docs/dsh-executor-evaluation.md).
 
 ## Design principles
 
