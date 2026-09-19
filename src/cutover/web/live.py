@@ -60,8 +60,9 @@ def run_mapping_stream(
             gateway, provider="deepseek", model=model, session_budget_usd=SESSION_BUDGET_USD,
             telemetry=sink, pricing=pricing,
         )
+        artifact_id = f"mapping-{dataset_id}"
         payload = {
-            "artifact_id": f"mapping-{dataset_id}", "project_id": "cutover-web",
+            "artifact_id": artifact_id, "project_id": "cutover-web",
             "complexity_score": score, "target": target, "source_columns": columns,
         }
         prompt = agent.build_prompt(payload)
@@ -91,7 +92,7 @@ def run_mapping_stream(
 
         totals = sink.totals_by_agent().get(agent.name, {"input_tokens": 0, "output_tokens": 0, "cost": 0.0})
         policy = RefinementPolicy()
-        branch = ArtifactBranch(payload["artifact_id"])
+        branch = ArtifactBranch(artifact_id)
         branch.add(Attempt(tier, pass_rate, float(totals["cost"])))
         estimates = {t: agent.estimate_cost_usd(tokens, tier_output_cap(t)) for t in policy.tiers}
         decision = policy.decide(branch, estimates)

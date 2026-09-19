@@ -23,6 +23,7 @@ test:
 
 lint:
 	.venv/bin/ruff check src/cutover tests
+	$(PY) -m mypy
 
 serve:
 	CUTOVER_DATA_DIR=./cutover-data PYTHONPATH=src $(PY) -m cutover.cli serve --port 8000

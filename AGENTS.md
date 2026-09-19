@@ -15,14 +15,14 @@ Rode da raiz do repositório.
 ```bash
 make install          # venv + dependências (dev, governance, scenarios, deepseek)
 make test             # pytest
-make lint             # ruff em src/cutover e tests
+make lint             # ruff em src/cutover e tests + mypy no pacote todo
 make serve            # app web em http://127.0.0.1:8000 (carrega o .env)
 make benchmark        # perfilamento determinístico, sem IA
 make llm-benchmark    # 15 chamadas REAIS à DeepSeek (custa frações de centavo)
 make pipelines        # simuladores de cenário (Cloudera/Fabric, Snowflake/Databricks)
 ```
 
-O CI (`.github/workflows/ci.yml`) roda ruff em `src/cutover tests`, mypy nos contratos estáveis (`intake`, `events`, `budget`, `cli`), pytest e o build do wheel, em Python 3.11 e 3.12.
+O CI (`.github/workflows/ci.yml`) roda ruff em `src/cutover tests`, mypy no pacote inteiro, pytest e o build do wheel, em Python 3.11 e 3.12.
 
 ## Estrutura
 

@@ -34,7 +34,7 @@ PILOT_WBS: list[tuple[str, str, float, float, float, str]] = [
 
 
 def pilot_wbs() -> tuple[list[dict[str, Any]], float]:
-    rows = [{"code": c, "task": t, "o": o, "m": m, "p": p, "e": (o + 4 * m + p) / 6, "source": src}
+    rows: list[dict[str, Any]] = [{"code": c, "task": t, "o": o, "m": m, "p": p, "e": (o + 4 * m + p) / 6, "source": src}
             for c, t, o, m, p, src in PILOT_WBS]
     return rows, sum(r["e"] for r in rows)
 
@@ -204,7 +204,8 @@ def consolidated_analysis(items: list[dict[str, Any]]) -> dict[str, Any]:
     for i in items:
         for c in i["profile"]["columns"]:
             by_name.setdefault(_norm(c["name"]), []).append((i["dataset"]["filename"], c))
-    shared, conflicts = [], []
+    shared: list[dict[str, Any]] = []
+    conflicts: list[dict[str, Any]] = []
     for group in by_name.values():
         files = {f for f, _ in group}
         if len(files) < 2:
