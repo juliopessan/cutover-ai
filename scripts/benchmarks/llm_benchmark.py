@@ -92,6 +92,7 @@ def main() -> None:
                     "cost_usd": response and response["cost_usd"], "latency_ms": response and response["latency_ms"],
                     "pass_rate": checks and checks["pass_rate"],
                     "checks_total": len((checks or {}).get("checks", [])),
+                    "failed_detail": {c["name"]: c["offenders"] for c in (checks or {}).get("checks", []) if c["status"] == "failed"},
                     "failed_checks": [c["name"] for c in (checks or {}).get("checks", []) if c["status"] == "failed"],
                     "type_family_agreement": agree / len(names), "disagreements": disagreements, "renames_needed": len(needed), "renames_done": len(fixed),
                 }

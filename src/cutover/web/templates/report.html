@@ -195,7 +195,17 @@
   {% if t.columns_stable_across_reps < t.columns_total %}
   <div class="flag"><span class="flag-k">Instabilidade entre repetições</span><p>{{ t.columns_total - t.columns_stable_across_reps }} colunas mudaram de destino ou tipo entre repetições do mesmo dataset. Trate a sugestão como rascunho, não como resultado reproduzível.</p></div>
   {% endif %}
-  <h4>4. Cauda de latência e de custo</h4>
+  <h4>4. O que as verificações determinísticas pegaram</h4>
+  {% if check_failures %}
+  <p>Em {{ check_failures | sum(attribute='times') }} de {{ t.runs }} chamadas, o modelo sugeriu algo que uma verificação calculada rejeitou. Um modelo que revisasse o próprio trabalho não teria como saber.</p>
+  <table class="r">
+    <thead><tr><th>Dataset</th><th>Verificação</th><th class="num">Repetições</th><th>Exemplo do que foi rejeitado</th></tr></thead>
+    <tbody>{% for f in check_failures %}<tr><td class="k">{{ f.dataset }}</td><td>{{ f.check }}</td><td class="num">{{ f.times }}/{{ llm.method.repetitions }}</td><td>{{ f.example }}</td></tr>{% endfor %}</tbody></table>
+  <p>Sem a checagem contra os dados medidos, essas sugestões teriam seguido para revisão como se estivessem corretas.</p>
+  {% else %}
+  <p>Nenhuma verificação rejeitou uma sugestão nesta rodada.</p>
+  {% endif %}
+  <h4>5. Cauda de latência e de custo</h4>
   <table class="r">
     <thead><tr><th>Métrica</th><th class="num">Valor</th><th>Leitura</th></tr></thead>
     <tbody>

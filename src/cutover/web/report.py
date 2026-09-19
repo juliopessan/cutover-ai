@@ -89,6 +89,17 @@ def disagreements(llm: dict[str, Any]) -> list[dict[str, Any]]:
     return [{"dataset": k[0], "column": k[1], "change": k[2], "times": n} for k, n in sorted(seen.items())]
 
 
+def check_failures(llm: dict[str, Any]) -> list[dict[str, Any]]:
+    """Which deterministic checks rejected model output, how often, and one concrete example each."""
+    found: dict[tuple[str, str], dict[str, Any]] = {}
+    for run in llm["runs"]:
+        for name, offenders in (run.get("failed_detail") or {}).items():
+            entry = found.setdefault((run["dataset"], name), {"dataset": run["dataset"], "check": name, "times": 0,
+                                                              "example": (offenders or [""])[0]})
+            entry["times"] += 1
+    return sorted(found.values(), key=lambda e: (-e["times"], e["dataset"]))
+
+
 def build_context() -> dict[str, Any]:
     profile, llm, project = load("profile"), load("llm"), load("project")
     defaults = {k: v["value"] for k, v in ASSUMPTIONS.items()}
@@ -99,6 +110,7 @@ def build_context() -> dict[str, Any]:
         "profile": profile, "llm": llm, "project": project, "assumptions": ASSUMPTIONS,
         "defaults": defaults, "ai_cost": ai_cost, "roi": roi(defaults, ai_cost),
         "per_dataset": per_dataset(llm) if llm else [], "disagreements": disagreements(llm) if llm else [],
+        "check_failures": check_failures(llm) if llm else [],
         "checks_per_run": max((run.get("checks_total", 0) for run in llm["runs"]), default=0) if llm else 0,
         "cost_tail": (llm["totals"]["cost_usd_max"] / llm["totals"]["cost_usd_mean"]) if llm else 0.0,
     }
