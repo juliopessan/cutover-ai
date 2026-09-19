@@ -161,3 +161,45 @@ def test_report_without_a_run_and_ownership(tmp_path):
     assert client.get(location + "/report").status_code == 404
     assert client.get(f"{location}/mapping/runs/{run_id}/download").status_code == 404
     assert client.post(f"{location}/mapping/runs/{run_id}/decision", data={"decision": "approved"}).status_code == 409
+
+
+def test_report_includes_stats_audit_privacy_and_economy(tmp_path):
+    client, location = make(tmp_path, FakeProvider())
+    run_id, _ = run_once(client, location)
+    client.post(f"{location}/mapping/runs/{run_id}/decision", data={"decision": "approved"})
+    report = client.get(location + "/report").text
+    for expected in ("Indicadores de qualidade", "Payload enviado ao modelo", "Esforço e economia",
+                     "Preço (US$ por milhão de tokens", "Tetos do nível", "Premissas não verificadas",
+                     "Sensibilidade dos dados", "Medido nos dados", "type_fits_data"):
+        assert expected in report, expected
+    assert "Tratar os alertas e usar o mapeamento aprovado." in report.split("Handoff")[1]  # this CSV has an alert
+
+
+def test_handoff_does_not_ask_to_treat_alerts_when_there_are_none(tmp_path):
+    client = TestClient(create_app(tmp_path, provider_factory=lambda: FakeProvider('{"id": {"target": "id", "type": "int"}, "name": {"target": "name", "type": "string"}}'), pricing=PRICING), follow_redirects=False)
+    client.post("/signup", data={"email": "a@example.com", "password": "correct-horse-1"})
+    location = client.post("/app/datasets", files={"file": ("clean.csv", "id,name\n1,a\n2,b\n")}, data={"target": "databricks"}).headers["location"]
+    run_id, _ = run_once(client, location)
+    assert client.post(f"{location}/mapping/runs/{run_id}/decision", data={"decision": "approved"}).json()["ok"]
+    handoff = client.get(location + "/report").text.split("Handoff")[1]
+    assert "Usar o mapeamento aprovado." in handoff and "Tratar os alertas" not in handoff
+
+
+def test_report_reprofiles_datasets_stored_with_an_older_profile(tmp_path):
+    import json
+    import sqlite3
+
+    client, location = make(tmp_path, FakeProvider())
+    dataset_id = int(location.rsplit("/", 1)[1])
+    db_path = tmp_path / "cutover.db"
+    conn = sqlite3.connect(db_path)
+    profile = json.loads(conn.execute("SELECT profile_json FROM datasets WHERE id = ?", (dataset_id,)).fetchone()[0])
+    profile.pop("profile_version"), profile.pop("privacy_hints")
+    for column in profile["columns"]:
+        column.pop("distinct")
+    conn.execute("UPDATE datasets SET profile_json = ? WHERE id = ?", (json.dumps(profile), dataset_id))
+    conn.commit()
+    conn.close()
+    assert "Este perfil é de uma versão anterior" not in client.get(location + "/report").text
+    stored = json.loads(sqlite3.connect(db_path).execute("SELECT profile_json FROM datasets").fetchone()[0])
+    assert stored["profile_version"] == 2 and "distinct" in stored["columns"][0]

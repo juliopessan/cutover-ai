@@ -74,6 +74,8 @@ def run_mapping_stream(
             "type": "gate.scored", "score": score, "tier": tier,
             "input_cap": caps["input_token_cap"], "output_cap": caps["output_token_cap"],
             "estimated_cost_usd": agent.estimate_cost_usd(tokens, tier_output_cap(tier)),
+            "price_in": getattr(pricing, "input_per_million_usd", None),
+            "price_out": getattr(pricing, "output_per_million_usd", None),
         })
 
         result = asyncio.run(agent.execute(AgentContext(run_id=uuid.uuid4().hex), payload))
@@ -83,7 +85,7 @@ def run_mapping_stream(
 
         mappings = dict(result.payload.get("mappings", {}))
         send({"type": "result", "mappings": mappings, "error": result.payload.get("error")})
-        checks = check_mapping([c["name"] for c in columns], mappings)
+        checks = check_mapping([c["name"] for c in columns], mappings, {c["name"]: c for c in profile["columns"]})
         pass_rate = pass_rate_from_checks(checks)
         send({"type": "checks", "checks": checks, "pass_rate": pass_rate})
 

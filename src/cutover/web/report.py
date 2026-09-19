@@ -99,5 +99,68 @@ def build_context() -> dict[str, Any]:
         "profile": profile, "llm": llm, "project": project, "assumptions": ASSUMPTIONS,
         "defaults": defaults, "ai_cost": ai_cost, "roi": roi(defaults, ai_cost),
         "per_dataset": per_dataset(llm) if llm else [], "disagreements": disagreements(llm) if llm else [],
+        "checks_per_run": max((run.get("checks_total", 0) for run in llm["runs"]), default=0) if llm else 0,
         "cost_tail": (llm["totals"]["cost_usd_max"] / llm["totals"]["cost_usd_mean"]) if llm else 0.0,
+    }
+
+
+def _seconds_between(start: str | None, end: str | None) -> float | None:
+    from datetime import datetime
+
+    try:
+        return (datetime.strptime(end or "", "%Y-%m-%d %H:%M:%S") - datetime.strptime(start or "", "%Y-%m-%d %H:%M:%S")).total_seconds()
+    except ValueError:
+        return None
+
+
+def column_note(c: dict[str, Any]) -> str:
+    """One measured observation per column, used next to the suggested mapping."""
+    notes = []
+    if c.get("is_key_candidate"):
+        notes.append("candidata a chave (valores únicos)")
+    kind = c.get("type")
+    if kind == "decimal" and c.get("max_scale") is not None:
+        notes.append(f"decimal({(c.get('max_int_digits') or 0) + c['max_scale']},{c['max_scale']}) é o mínimo observado")
+    elif kind == "integer" and c.get("min") is not None:
+        notes.append(f"faixa {c['min']} a {c['max']}")
+    elif kind == "date" and c.get("min"):
+        notes.append(f"de {c['min']} a {c['max']}")
+    elif kind == "text" and c.get("max_len"):
+        notes.append(f"até {c['max_len']} caracteres")
+    return "; ".join(notes)
+
+
+def dataset_analysis(profile: dict[str, Any], run: dict[str, Any] | None, history: list[dict[str, Any]]) -> dict[str, Any]:
+    """Everything the dataset report shows beyond the raw profile. Measured values and assumptions stay separate."""
+    from cutover.web.profiling import INVALID_NAME_CHARS
+
+    columns = profile["columns"]
+    total_cells, rows = profile.get("total_cells", 0), profile["rows"]
+    bad_names = [c for c in columns if INVALID_NAME_CHARS.search(c["name"]) or not c["name"].strip()]
+    discarded = profile.get("rows_discarded", 0)
+    quality = [
+        ("Completude (células preenchidas)", 1 - (profile["empty_cells"] / total_cells) if total_cells else 1.0),
+        ("Unicidade de linhas", 1 - (profile["duplicate_rows"] / rows) if rows else 1.0),
+        ("Consistência de tipos (colunas sem mistura)", sum(1 for c in columns if c["type"] != "mixed") / len(columns)),
+        ("Nomes compatíveis com Delta", 1 - len(bad_names) / len(columns)),
+        ("Linhas lidas sem descarte", rows / (rows + discarded) if rows + discarded else 1.0),
+    ]
+    notes = {c["name"]: column_note(c) for c in columns}
+    economy = None
+    if run and run.get("elapsed_ms") is not None:
+        assumptions = {k: v["value"] for k, v in ASSUMPTIONS.items()}
+        review = _seconds_between(run.get("created_at"), run.get("decided_at")) if run["decision"] != "pending" else None
+        ai_seconds = run["elapsed_ms"] / 1000
+        hours_spent = (ai_seconds + (review or 0)) / 3600
+        economy = {
+            "ai_seconds": ai_seconds, "review_seconds": review, "manual_hours": assumptions["manual_hours"],
+            "rate_usd": assumptions["rate_usd"],
+            "saving_hours": assumptions["manual_hours"] - hours_spent if review is not None else None,
+            "saving_usd": (assumptions["manual_hours"] - hours_spent) * assumptions["rate_usd"] - (run.get("cost_usd") or 0)
+            if review is not None else None,
+        }
+    return {
+        "quality": quality, "notes": notes, "economy": economy, "has_stats": "distinct" in (columns[0] if columns else {}),
+        "key_columns": [c["name"] for c in columns if c.get("is_key_candidate")],
+        "history": history,
     }

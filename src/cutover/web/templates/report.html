@@ -42,7 +42,7 @@
   <p class="eyebrow">Resumo executivo</p>
   <h2 style="font-size: 26px; letter-spacing: -0.02em; margin-bottom: 16px">Resumo executivo: AI-IS sem migração de plataforma</h2>
   <p>Foi solicitada uma avaliação técnica e econômica para determinar se a IA pode reduzir o esforço manual do assessment AS-IS de dados sem elevar o risco, respeitando uma restrição crítica: <b>nenhuma linha de dados é enviada ao modelo e nenhuma sugestão é aplicada sem aprovação humana</b>. Foram executadas {{ t.runs }} chamadas reais a um modelo de linguagem sobre {{ llm.method.datasets }} datasets, com {{ llm.method.repetitions }} repetições cada.</p>
-  <p>A investigação indica <b>GO CONDICIONAL para um piloto</b>. A viabilidade técnica está demonstrada ({{ t.successful }} de {{ t.runs }} chamadas concluídas, {{ t.runs_with_all_checks_passed }} com todas as verificações aprovadas) e o custo do modelo é desprezível (<b>US$ {{ t.cost_usd_mean | br_dec(6) }}</b> por dataset). Porém o <b>ganho econômico sobre um time de dados e engenharia ainda não está provado</b>: nenhuma hora humana foi cronometrada.</p>
+  <p>A investigação indica <b>GO CONDICIONAL para um piloto</b>. A viabilidade técnica está demonstrada ({{ t.successful }} de {{ t.runs }} chamadas concluídas, {{ t.runs_with_all_checks_passed }} com todas as {{ checks_per_run }} verificações aprovadas) e o custo do modelo é desprezível (<b>US$ {{ t.cost_usd_mean | br_dec(6) }}</b> por dataset). Porém o <b>ganho econômico sobre um time de dados e engenharia ainda não está provado</b>: nenhuma hora humana foi cronometrada.</p>
   <h3 style="font-size: 15px; margin: 22px 0 10px">Principais achados técnicos</h3>
   <ul>
     <li><b>Viável e barato:</b> custo total de US$ {{ t.cost_usd_total | br_dec(4) }} para {{ t.runs }} chamadas; {{ t.input_tokens_total | br_int }} tokens de entrada e {{ t.output_tokens_total | br_int }} de saída, medidos pelo provedor.</li>
@@ -96,7 +96,7 @@
   <table class="r">
     <thead><tr><th>Critério</th><th>Peso</th><th>Resultado</th><th>Rastreabilidade e evidência</th><th>Justificativa</th></tr></thead>
     <tbody>
-      <tr><td class="k">1. Viabilidade técnica</td><td>Alto</td><td class="k">Atendido</td><td>{{ t.successful }}/{{ t.runs }} chamadas reais; {{ t.runs_with_all_checks_passed }} com 5/5 verificações (<code>llm.json</code>)</td><td>O fluxo completo funciona ponta a ponta sob portão de custo.</td></tr>
+      <tr><td class="k">1. Viabilidade técnica</td><td>Alto</td><td class="k">Atendido</td><td>{{ t.successful }}/{{ t.runs }} chamadas reais; {{ t.runs_with_all_checks_passed }} com {{ checks_per_run }}/{{ checks_per_run }} verificações (<code>llm.json</code>)</td><td>O fluxo completo funciona ponta a ponta sob portão de custo.</td></tr>
       <tr><td class="k">2. Custo de IA</td><td>Alto</td><td class="k">Atendido</td><td>US$ {{ t.cost_usd_total | br_dec(4) }} no total; média de US$ {{ t.cost_usd_mean | br_dec(6) }} por dataset</td><td>Custo desprezível; o gargalo passa a ser a revisão humana.</td></tr>
       <tr><td class="k">3. Reprodutibilidade</td><td>Alto</td><td class="k">Parcial</td><td>{{ t.columns_stable_across_reps }}/{{ t.columns_total }} colunas estáveis entre repetições</td><td>Sugestões variam; a aprovação humana é obrigatória.</td></tr>
       <tr><td class="k">4. Segurança de dados</td><td>Alto</td><td class="k">Parcial</td><td>Payload de teste: só nomes e tipos de colunas; sem linhas de dados</td><td>Não testado com dados sensíveis; nomes de coluna também podem ser sensíveis.</td></tr>

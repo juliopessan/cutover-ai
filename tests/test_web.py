@@ -171,3 +171,56 @@ def test_report_page_separates_measured_from_assumed(client):
     assert "Premissas não verificadas" in page.text and "Decisão pedida ao patrocinador" in page.text
     assert page.text.count("Handoff") == 7 and "Estimativa não verificada" in page.text
     assert 'src="/static/report.js"' in page.text
+
+
+def test_profile_measures_ranges_keys_decimal_shape_and_privacy_hints(tmp_path):
+    from cutover.web.profiling import privacy_hints
+
+    path = tmp_path / "d.csv"
+    path.write_text("order_id,customer_name,total,day,notes\n1,Ana,10.50,2025-01-03,abc\n2,Bruno,1234.5,2025-03-09,\n3,Ana,7.125,2025-02-01,x\n",
+                    encoding="utf-8")
+    cols = {c["name"]: c for c in profile_csv(path).columns}
+    assert cols["order_id"]["is_key_candidate"] and cols["order_id"]["min"] == "1" and cols["order_id"]["max"] == "3"
+    assert cols["customer_name"]["distinct"] == 2 and not cols["customer_name"]["is_key_candidate"]
+    assert cols["total"]["max_scale"] == 3 and cols["total"]["max_int_digits"] == 4 and cols["total"]["max"] == "1234.5"
+    assert cols["day"]["min"] == "2025-01-03" and cols["day"]["max"] == "2025-03-09"
+    assert cols["notes"]["max_len"] == 3
+    assert [h["column"] for h in privacy_hints(["cpf_cliente", "valor", "E-mail", "Telefone Celular", "quantidade"])] == [
+        "cpf_cliente", "E-mail", "Telefone Celular"]
+
+
+def test_type_fits_data_catches_unsafe_types_only_when_profile_is_given():
+    from cutover.plugins.mapping import check_mapping, type_conflict
+
+    profile = {"id": {"type": "integer", "min": "1", "max": "5000000000"}, "price": {"type": "decimal", "min": "1", "max": "9"},
+               "city": {"type": "text"}, "d": {"type": "text"}}
+    mappings = {"id": {"target": "id", "type": "int"}, "price": {"target": "price", "type": "int"},
+                "city": {"target": "city", "type": "int"}, "d": {"target": "d", "type": "date"}}
+    assert len(check_mapping(list(mappings), mappings)) == 5  # legacy call keeps the five checks
+    fit = {c["name"]: c for c in check_mapping(list(mappings), mappings, profile)}["type_fits_data"]
+    assert fit["status"] == "failed" and len(fit["offenders"]) == 3  # id overflows, price loses decimals, city is text
+    assert type_conflict(profile["d"], "date") is None  # text to date is allowed (needs a source format, not unsafe)
+    assert type_conflict(profile["id"], "bigint") is None
+
+
+def test_db_migration_adds_missing_audit_columns(tmp_path):
+    import sqlite3
+
+    from cutover.web.db import Database
+
+    old = tmp_path / "old.db"
+    conn = sqlite3.connect(old)
+    conn.execute("CREATE TABLE users(id INTEGER PRIMARY KEY, email TEXT, password_hash TEXT, created_at TEXT)")
+    conn.execute("CREATE TABLE mapping_runs(id INTEGER PRIMARY KEY, dataset_id INTEGER, user_id INTEGER, status TEXT)")
+    conn.commit()
+    conn.close()
+    Database(old)
+    cols = {r[1] for r in sqlite3.connect(old).execute("PRAGMA table_info(mapping_runs)")}
+    assert {"prompt", "price_in", "price_out", "input_cap", "output_cap", "estimated_cost_usd"} <= cols
+
+
+def test_identical_columns_are_flagged_by_content_not_by_name(tmp_path):
+    path = tmp_path / "d.csv"
+    path.write_text("a,b,c,e1,e2\n1,1,x,,\n2,2,y,,\n3,3,x,,\n", encoding="utf-8")
+    kinds = {f.kind: f for f in profile_csv(path).flags}
+    assert kinds["identical_columns"].items == ["a = b"]  # c differs; all-empty e1/e2 are not reported as twins

@@ -31,8 +31,40 @@ def _target_of(entry: Any) -> str | None:
     return None
 
 
-def check_mapping(source_columns: Sequence[str], mappings: Mapping[str, Any]) -> list[dict[str, Any]]:
-    """Deterministic checks over a suggested mapping. None of them asks a model anything."""
+INT32_MAX = 2_147_483_647
+NUMERIC_TARGETS = {"int", "bigint", "double", "decimal"}
+
+
+def type_conflict(profile: Mapping[str, Any], suggested: str | None) -> str | None:
+    """Why ``suggested`` cannot safely hold the data the profile measured, or None when it can."""
+    kind = profile.get("type")
+    if suggested in NUMERIC_TARGETS and kind not in ("integer", "decimal"):
+        return f"a coluna é {kind}, não numérica"
+    if suggested in ("int", "bigint") and kind == "decimal":
+        return "há casas decimais que seriam perdidas"
+    if suggested == "int":
+        try:
+            if max(abs(float(profile.get("min") or 0)), abs(float(profile.get("max") or 0))) > INT32_MAX:
+                return f"valores até {profile.get('max')} não cabem em int (use bigint)"
+        except ValueError:
+            return None
+    if suggested == "boolean" and kind != "boolean":
+        return f"a coluna é {kind}, não booleana"
+    if suggested in ("date", "timestamp") and kind in ("integer", "decimal", "boolean", "mixed"):
+        return f"a coluna é {kind}, não uma data"
+    return None
+
+
+def check_mapping(
+    source_columns: Sequence[str],
+    mappings: Mapping[str, Any],
+    profile_columns: Mapping[str, Mapping[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    """Deterministic checks over a suggested mapping. None of them asks a model anything.
+
+    With ``profile_columns`` (name to measured column profile) it also checks that each suggested type can
+    hold the data that was measured.
+    """
     sources = list(source_columns)
     targets = {name: _target_of(mappings.get(name)) for name in sources}
     missing = [n for n in sources if targets[n] is None]
@@ -52,13 +84,24 @@ def check_mapping(source_columns: Sequence[str], mappings: Mapping[str, Any]) ->
         return {"name": name, "status": "failed" if offenders else "passed",
                 "details": fail if offenders else ok, "offenders": offenders}
 
-    return [
+    checks = [
         check("covers_all_columns", missing, "Toda coluna de origem tem destino.", "Colunas de origem sem destino."),
         check("no_unknown_columns", extra, "Nenhuma coluna inventada.", "O modelo mapeou colunas que não existem."),
         check("delta_safe_names", bad_names, "Todos os nomes de destino são seguros para Delta.", "Nomes de destino fora de [a-z_][a-z0-9_]*."),
         check("unique_targets", collisions, "Nenhum destino repetido.", "Várias colunas apontam para o mesmo destino."),
         check("valid_types", bad_types, "Todos os tipos são suportados.", f"Tipos fora de {', '.join(DELTA_TYPES)}."),
     ]
+    if profile_columns is not None:
+        conflicts = []
+        for name in sources:
+            entry = mappings.get(name)
+            suggested = entry.get("type") if isinstance(entry, dict) else None
+            reason = type_conflict(profile_columns.get(name, {}), suggested) if suggested else None
+            if reason:
+                conflicts.append(f"{name}: {suggested}, {reason}")
+        checks.append(check("type_fits_data", conflicts, "Todo tipo sugerido comporta os dados medidos.",
+                            "Tipo sugerido não comporta os dados medidos."))
+    return checks
 
 
 class MappingSuggestionAgent(GovernedAgent):

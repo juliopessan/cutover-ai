@@ -51,12 +51,22 @@ CREATE INDEX IF NOT EXISTS idx_datasets_user ON datasets(user_id, id DESC);
 """
 
 
+MAPPING_RUN_EXTRA_COLUMNS = {
+    "prompt": "TEXT", "price_in": "REAL", "price_out": "REAL", "input_cap": "INTEGER", "output_cap": "INTEGER",
+    "estimated_cost_usd": "REAL",
+}
+
+
 class Database:
     def __init__(self, path: Path) -> None:
         self.path = path
         path.parent.mkdir(parents=True, exist_ok=True)
         with self.connect() as conn:
             conn.executescript(SCHEMA)
+            existing = {row["name"] for row in conn.execute("PRAGMA table_info(mapping_runs)")}
+            for column, kind in MAPPING_RUN_EXTRA_COLUMNS.items():
+                if column not in existing:  # additive migration for databases created before the column existed
+                    conn.execute(f"ALTER TABLE mapping_runs ADD COLUMN {column} {kind}")
 
     @contextmanager
     def connect(self) -> Iterator[sqlite3.Connection]:

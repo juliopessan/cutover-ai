@@ -55,6 +55,7 @@ table.r input { font: 600 12.5px var(--mono); width: 100%; max-width: 120px; pad
 .decision { margin: 12px 0; }
 .stat4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin: 14px 0 18px; }
 @media (max-width: 700px) { .stat4 { grid-template-columns: 1fr 1fr; } .doc { padding: 0 16px 48px; } .toolbar { padding: 16px 16px 0; } }
+pre.payload { background: var(--paper-deep); padding: 12px 14px; font: 11.5px/1.55 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink); margin: 6px 0 14px; }
 @page { size: A4; margin: 14mm 12mm; }
 @media print {
   body.report-body { background: #fff; font-size: 12px; }

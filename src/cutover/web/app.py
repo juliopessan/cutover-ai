@@ -23,9 +23,9 @@ from cutover.governance.bridge import load_dispatch_tiers
 from cutover.web import auth
 from cutover.web.db import Database
 from cutover.web import runs as run_store
-from cutover.web.report import build_context
+from cutover.web.profiling import PROFILE_VERSION, ProfileError, profile_csv
+from cutover.web.report import build_context, dataset_analysis
 from cutover.web.live import SESSION_BUDGET_USD, run_mapping_stream
-from cutover.web.profiling import ProfileError, profile_csv
 
 HERE = Path(__file__).parent
 BENCHMARK = HERE / "benchmarks" / "profile.json"
@@ -377,11 +377,23 @@ def create_app(
                                (dataset_id, user["id"])).fetchone()
         if not row:
             return render(request, "notfound.html", 404)
+        profile = json.loads(row["profile_json"])
+        if profile.get("profile_version", 1) < PROFILE_VERSION and Path(row["stored_path"]).exists():
+            try:  # datasets profiled by an older version get the richer profile, from the file that was stored
+                fresh = profile_csv(Path(row["stored_path"])).to_dict()
+                if fresh["sha256"] == profile["sha256"]:
+                    profile = fresh
+                    with db.connect() as conn:
+                        conn.execute("UPDATE datasets SET profile_json = ? WHERE id = ?", (json.dumps(fresh), dataset_id))
+            except ProfileError:
+                pass
         run = run_store.best_run(db, dataset_id=dataset_id, user_id=user["id"])
+        history = run_store.list_runs(db, dataset_id=dataset_id, user_id=user["id"])
         return templates.TemplateResponse(request, "dataset_report.html", {
-            "dataset": dict(row), "profile": json.loads(row["profile_json"]), "run": run,
+            "dataset": dict(row), "profile": profile, "run": run, "history": history,
+            "analysis": dataset_analysis(profile, run, history),
             "target_label": TARGETS.get(row["target"], row["target"]), "user": user,
-            "runs_total": len(run_store.list_runs(db, dataset_id=dataset_id, user_id=user["id"])),
+            "runs_total": len(history),
             "generated_at": datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC"),
         })
 
