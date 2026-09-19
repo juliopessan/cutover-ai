@@ -2,28 +2,46 @@
 
 [![CI](https://github.com/juliopessan/cutover-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/juliopessan/cutover-ai/actions/workflows/ci.yml)
 
-**Governed data migration to Microsoft Fabric and Databricks: every AI call is scored, budgeted and audited before it costs you a token.**
+**A model can draft your migration plan. It cannot be trusted to grade it.**
+
+Cutover is governed data migration to Microsoft Fabric and Databricks: what can be measured is computed, every AI call is budgeted before it costs a token, and what cannot be verified is flagged.
 
 <p align="center"><img src="docs/assets/landing.png" alt="Cutover landing page: headline 'Cada número da sua migração é medido, não afirmado' beside the cost-gate ledger read from dispatch.yaml" width="860"></p>
 
-Cutover is a Python SDK and control plane that plans, maps and validates enterprise data migrations with AI agents, while keeping cost and risk under hard, deterministic limits. Migration-critical work stays deterministic; models only analyse, suggest and explain, and only after passing a gate.
+## Why this exists
 
-- **Two first-class targets:** Microsoft Fabric and Databricks, each with an independent contract.
-- **Cost as a runtime constraint:** hard per-call, per-artifact and per-session budgets enforced *before* the provider is called.
-- **Audit by default:** every admitted, compressed or rejected token lands in a waste ledger with the reason.
-- **Onboarding first:** discovery cannot start until business, technical, security and target requirements are complete.
+AI-assisted migrations tend to fail quietly, in three places:
 
-Developer tools: see [RTK Integration](docs/rtk/overview.md) for repository helpers to install and initialize the `rtk` CLI for token-optimized command output.
+- **Spend has no ceiling.** Model calls are made without a budget per artifact, so cost is discovered on the invoice.
+- **The model grades its own work.** A review by the same model that wrote the mapping tends to approve it. Counts, types and duplicates should be computed from the data instead.
+- **Suggestions get applied without an owner.** A mapping that came from a model needs a person to decide before anything runs.
 
-## Run as a SaaS
+Cutover closes each one: a Tollgate gate in front of every provider call, deterministic checks for anything measurable, and human approval on model suggestions. Migration-critical work stays deterministic; models only analyse, suggest and explain.
+
+## What works today
+
+Cutover is alpha. Here is what you can use now and what is still being built.
+
+| Step | What happens | Status |
+|---|---|---|
+| Onboarding | `cutover onboard` asks for business, security and target requirements and reports `blocked`, `needs_review` or `ready` | Available (CLI) |
+| Upload and profile | The web app profiles a CSV: rows, types, empty cells, duplicates, SHA-256, Delta-compatible column names. Nothing is sent to an LLM | Available |
+| Governed AI calls | `GovernedAgent` and `MappingSuggestionAgent` route every call through the Tollgate gateway; suggestions carry `requires_approval` | Available (SDK) |
+| Refinement policy | `ArtifactBranch` decides accept, refine, escalate, parallelize or stop by pass rate and cost | Available (SDK), not yet wired to agents |
+| Migration plan and validation | Plans per target and reconciliation of source against target | In development |
+
+Extraction, deployment and cutover are never automatic; see the [safety boundary](#safety-boundary).
+
+## Try it in two minutes
 
 ```bash
-pip install -e ".[dev,governance]"
-cutover serve --data-dir ./cutover-data      # http://127.0.0.1:8000
-# or: docker compose up --build
+make install
+make serve            # http://127.0.0.1:8000
 ```
 
-The app serves a landing page, account signup and login, and a dataset upload that is profiled deterministically (rows, types, empty cells, duplicates, SHA-256, Delta-compatible column names). Nothing is sent to an LLM at upload time. Set `CUTOVER_COOKIE_SECURE=1` behind HTTPS. Data lives in `CUTOVER_DATA_DIR` (SQLite plus uploads); this is a single-node setup, so back that directory up.
+Create an account at `/signup`, upload a CSV in UTF-8 (up to 25 MB) and read the profile. Or use Docker: `docker compose up --build`.
+
+Data lives in `CUTOVER_DATA_DIR` (SQLite plus uploads), which makes this a single-node setup: back that directory up, and set `CUTOVER_COOKIE_SECURE=1` behind HTTPS.
 
 ## Governed AI calls (powered by Tollgate)
 
@@ -69,7 +87,7 @@ templates/            dashboard and report templates
 docs/                 design notes and guides (see docs/README.md)
 ```
 
-`make install`, `make test`, `make lint`, `make serve` and `make pipelines` cover the common tasks.
+`make install`, `make test`, `make lint`, `make serve` and `make pipelines` cover the common tasks. For the `rtk` CLI helpers, see [RTK Integration](docs/rtk/overview.md).
 
 ## Design principles
 
