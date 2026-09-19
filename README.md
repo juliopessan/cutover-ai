@@ -83,7 +83,7 @@ response = gateway.complete(CallEnvelope(
 
 Uma chamada sem score, com nível desconhecido ou com orçamento esgotado levanta `GuardianBlocked` e nunca chega ao provedor. Os tetos de cada nível ficam em [`dispatch.yaml`](src/cutover/governance/dispatch.yaml).
 
-O [DeepSeek Harness](https://github.com/juliopessan/deepseek-harness) é um runtime de agentes em TypeScript e propositalmente **não** foi embutido: o Cutover fala com os modelos da DeepSeek pelo provedor de API acima. Um executor `dsh` para geração de código em sandbox foi avaliado e adiado; veja [docs/dsh-executor-evaluation.md](docs/dsh-executor-evaluation.md).
+Para rodar com a DeepSeek, copie `.env.example` para `.env` (ignorado pelo git) e preencha `DEEPSEEK_API_KEY` e `DEEPSEEK_MODEL`. O `make` carrega o `.env` sozinho.
 
 ## Estrutura do repositório
 

@@ -1,3 +1,9 @@
+# Load local secrets (DEEPSEEK_API_KEY, DEEPSEEK_MODEL) from .env when present.
+ifneq (,$(wildcard .env))
+include .env
+export
+endif
+
 .PHONY: install test lint serve pipelines benchmark
 
 PY := .venv/bin/python

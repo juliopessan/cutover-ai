@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from abc import abstractmethod
 from collections.abc import Mapping
 from typing import Any
@@ -34,7 +35,7 @@ class GovernedAgent(MigrationAgent):
     ) -> None:
         self.gateway = gateway
         self.provider = provider or self.provider
-        self.model = model or self.model
+        self.model = model or os.getenv("DEEPSEEK_MODEL") or self.model
         self.session_budget_usd = session_budget_usd
         self.artifact_budget_usd = artifact_budget_usd
         self.telemetry = telemetry or NullTelemetrySink()
