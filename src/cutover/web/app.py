@@ -10,7 +10,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from fastapi import FastAPI, File, Form, Request, UploadFile
-from fastapi.responses import RedirectResponse, Response
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -86,6 +86,10 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         return response
 
     # ---- public ----------------------------------------------------------------
+
+    @app.get("/favicon.ico", include_in_schema=False)
+    def favicon() -> FileResponse:
+        return FileResponse(HERE / "static" / "favicon.ico", media_type="image/x-icon")
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:

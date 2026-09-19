@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Cutover">
+  <rect width="64" height="64" fill="#14140f"/>
+  <path d="M 44.26 21.72 A 16 16 0 1 0 44.26 42.28" fill="none" stroke="#efece4" stroke-width="8"/>
+  <circle cx="47" cy="32" r="4.5" fill="#8fcfa6"/>
+</svg>

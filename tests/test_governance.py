@@ -102,3 +102,15 @@ def test_deepseek_provider_reconciles_measured_usage():
     assert result.content == "done"
     assert result.cost_usd == pytest.approx(2.0)
     assert Client.chat.completions.kwargs["messages"][0] == {"role": "system", "content": "be brief"}
+
+
+def test_deepseek_pricing_from_env(monkeypatch):
+    from cutover.providers.deepseek import DeepSeekProviderError
+
+    monkeypatch.setenv("DEEPSEEK_PRICE_INPUT_PER_M", "0.04")
+    monkeypatch.setenv("DEEPSEEK_PRICE_OUTPUT_PER_M", "0.08")
+    pricing = DeepSeekPricing.from_env()
+    assert pricing.calculate(1_000_000, 1_000_000) == pytest.approx(0.12)
+    monkeypatch.delenv("DEEPSEEK_PRICE_OUTPUT_PER_M")
+    with pytest.raises(DeepSeekProviderError):
+        DeepSeekPricing.from_env()

@@ -1,5 +1,7 @@
 # Cutover
 
+<p align="center"><img src="src/cutover/web/static/icon-192.png" width="96" alt="Ícone do Cutover: um C em tinta clara com um ponto verde"></p>
+
 [![CI](https://github.com/juliopessan/cutover-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/juliopessan/cutover-ai/actions/workflows/ci.yml)
 
 **Um modelo pode redigir o seu plano de migração. Não dá para confiar nele para corrigi-lo.**
@@ -68,7 +70,7 @@ from cutover.governance import GovernanceSettings, build_gateway, tier_for_score
 from cutover.providers import DeepSeekPricing, DeepSeekProvider
 from tollgate.governance.runtime.guardian import CallEnvelope
 
-provider = DeepSeekProvider(pricing=DeepSeekPricing(input_per_million_usd=..., output_per_million_usd=...))
+provider = DeepSeekProvider(pricing=DeepSeekPricing.from_env())
 gateway = build_gateway(GovernanceSettings(db_path=Path("~/.cutover/ledger.db").expanduser()), provider)
 
 score = 24.0  # score de complexidade do seu artefato, de 0 a 100
@@ -83,7 +85,7 @@ response = gateway.complete(CallEnvelope(
 
 Uma chamada sem score, com nível desconhecido ou com orçamento esgotado levanta `GuardianBlocked` e nunca chega ao provedor. Os tetos de cada nível ficam em [`dispatch.yaml`](src/cutover/governance/dispatch.yaml).
 
-Para rodar com a DeepSeek, copie `.env.example` para `.env` (ignorado pelo git) e preencha `DEEPSEEK_API_KEY` e `DEEPSEEK_MODEL`. O `make` carrega o `.env` sozinho.
+Para rodar com a DeepSeek, copie `.env.example` para `.env` (ignorado pelo git) e preencha `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL` e os preços por milhão de tokens (`DEEPSEEK_PRICE_INPUT_PER_M` e `DEEPSEEK_PRICE_OUTPUT_PER_M`). O `make` carrega o `.env` sozinho.
 
 ## Estrutura do repositório
 

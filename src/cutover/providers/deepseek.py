@@ -21,6 +21,19 @@ class DeepSeekPricing:
     input_per_million_usd: float
     output_per_million_usd: float
 
+    @classmethod
+    def from_env(cls) -> "DeepSeekPricing":
+        """Read DEEPSEEK_PRICE_INPUT_PER_M and DEEPSEEK_PRICE_OUTPUT_PER_M (USD per million tokens)."""
+        try:
+            return cls(
+                input_per_million_usd=float(os.environ["DEEPSEEK_PRICE_INPUT_PER_M"]),
+                output_per_million_usd=float(os.environ["DEEPSEEK_PRICE_OUTPUT_PER_M"]),
+            )
+        except (KeyError, ValueError) as exc:
+            raise DeepSeekProviderError(
+                "Set DEEPSEEK_PRICE_INPUT_PER_M and DEEPSEEK_PRICE_OUTPUT_PER_M (see .env.example)"
+            ) from exc
+
     def calculate(self, input_tokens: int, output_tokens: int) -> float:
         return round(
             input_tokens / 1_000_000 * self.input_per_million_usd

@@ -143,3 +143,12 @@ def test_landing_shows_proof_only_when_measurements_exist(tmp_path, monkeypatch)
 
     bench.unlink()
     assert 'id="prova"' not in TestClient(create_app(tmp_path / "d2")).get("/").text
+
+
+def test_favicon_is_served_for_every_page(client):
+    ico = client.get("/favicon.ico")
+    assert ico.status_code == 200 and ico.content[:4] == b"\x00\x00\x01\x00"
+    for url in ("/", "/login", "/signup"):
+        page = client.get(url).text
+        assert 'href="/static/favicon.svg"' in page and 'rel="apple-touch-icon"' in page
+    assert client.get("/static/site.webmanifest").status_code == 200

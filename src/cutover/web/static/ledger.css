@@ -52,7 +52,7 @@ h3 { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; }
 
 /* nav */
 .nav { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 22px 0; }
-.wordmark { font-weight: 800; font-size: 20px; letter-spacing: -0.03em; text-decoration: none; color: var(--ink); }
+.wordmark { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; font-size: 20px; letter-spacing: -0.03em; text-decoration: none; color: var(--ink); }
 .nav-links { display: flex; align-items: center; gap: 24px; font-size: 13.5px; }
 .nav-links a { text-decoration: none; color: var(--ink-soft); }
 .nav-links a:hover { color: var(--ink); }
