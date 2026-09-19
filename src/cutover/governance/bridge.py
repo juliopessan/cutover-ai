@@ -63,15 +63,10 @@ def build_gateway(
     from tollgate.governance.runtime.policy_loader import load_tier_policies
     from tollgate.governance.runtime.provider_gateway import GuardedProviderGateway
     from tollgate.governance.store.budget_reservations import BudgetReservations
-    from tollgate.governance.store import waste_ledger
     from tollgate.governance.store.waste_ledger import WasteLedger
 
     ledger = WasteLedger(settings.db_path)
     ledger.migrate()
-    # WasteLedger.migrate() applies only 002; the reservations table (003) needs its own pass.
-    reservations_sql = Path(waste_ledger.__file__).parent / "migrations" / "003_budget_reservations.sql"
-    with ledger.connect() as connection:
-        connection.executescript(reservations_sql.read_text(encoding="utf-8"))
     guardian = Guardian(
         ledger,
         load_tier_policies(settings.policy_path),
