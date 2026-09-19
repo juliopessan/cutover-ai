@@ -14,8 +14,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 if str(PROJECT_ROOT / "src") not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-from migration_sdk.validation import evaluate_deterministic_migration_checks
-from migration_sdk.validation.runtime_checks import run_runtime_checks
+from cutover.validation import evaluate_deterministic_migration_checks
+from cutover.validation.runtime_checks import run_runtime_checks
 
 # ============================================================================
 # Migration Models

@@ -1,4 +1,4 @@
-from migration_sdk.validation.evidence import evaluate_deterministic_migration_checks
+from cutover.validation.evidence import evaluate_deterministic_migration_checks
 
 
 def test_deterministic_validation_emits_objective_checks():

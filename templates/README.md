@@ -14,7 +14,7 @@ Professional dashboard template system para criar dashboards executivos reutiliz
 
 ```bash
 # Abra um terminal na pasta do projeto
-cd c:\Users\julio.cesar.d.pessan\data-migration-multi-agent
+cd c:\Users\julio.cesar.d.pessan\cutover-ai
 
 # Ative o ambiente virtual
 .venv\Scripts\Activate.ps1

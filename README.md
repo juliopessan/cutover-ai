@@ -1,12 +1,49 @@
-# Data Migration Multi-Agent Factory
+# Cutover
 
-[![CI](https://github.com/juliopessan/data-migration-multi-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/juliopessan/data-migration-multi-agent/actions/workflows/ci.yml)
+[![CI](https://github.com/juliopessan/cutover-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/juliopessan/cutover-ai/actions/workflows/ci.yml)
 
-An AI-first, financially governed migration SDK for preparing and validating enterprise data workloads targeting **Microsoft Fabric** and **Databricks**.
+**Governed data migration to Microsoft Fabric and Databricks: every AI call is scored, budgeted and audited before it costs you a token.**
 
-Developer tools: see [RTK Integration](RTK.md) for repository helpers to install and initialize the `rtk` CLI for token-optimized command output and developer workflows.
+Cutover is a Python SDK and control plane that plans, maps and validates enterprise data migrations with AI agents, while keeping cost and risk under hard, deterministic limits. Migration-critical work stays deterministic; models only analyse, suggest and explain, and only after passing a gate.
 
-The platform combines a typed Python runtime, declarative agent definitions, extensible plugins, synthetic test data, native telemetry, token budgets, and optional Headroom context compression.
+- **Two first-class targets:** Microsoft Fabric and Databricks, each with an independent contract.
+- **Cost as a runtime constraint:** hard per-call, per-artifact and per-session budgets enforced *before* the provider is called.
+- **Audit by default:** every admitted, compressed or rejected token lands in a waste ledger with the reason.
+- **Onboarding first:** discovery cannot start until business, technical, security and target requirements are complete.
+
+Developer tools: see [RTK Integration](RTK.md) for repository helpers to install and initialize the `rtk` CLI for token-optimized command output.
+
+## Governed AI calls (powered by Tollgate)
+
+Cutover routes every LLM call through [Tollgate](https://github.com/juliopessan/toolgate): a complexity score picks a tier (Solar to Aurora), the Guardian admits, compresses or blocks the payload, and the outcome is recorded.
+
+```bash
+pip install "cutover-ai[governance]"      # Tollgate gate + waste ledger
+pip install "cutover-ai[deepseek]"        # optional low-cost DeepSeek provider
+```
+
+```python
+from pathlib import Path
+from cutover.governance import GovernanceSettings, build_gateway, tier_for_score
+from cutover.providers import DeepSeekPricing, DeepSeekProvider
+from tollgate.governance.runtime.guardian import CallEnvelope
+
+provider = DeepSeekProvider(pricing=DeepSeekPricing(input_per_million_usd=..., output_per_million_usd=...))
+gateway = build_gateway(GovernanceSettings(db_path=Path("~/.cutover/ledger.db").expanduser()), provider)
+
+score = 24.0  # your artifact complexity score, 0-100
+response = gateway.complete(CallEnvelope(
+    session_id="run-1", project_id="acme", artifact_id="mapping-42",
+    payload=prompt, candidate_tokens=len(prompt) // 4,
+    complexity_score=score, tier=tier_for_score(score),
+    provider="deepseek", model="deepseek-chat",
+    estimated_cost_usd=0.002, session_budget_usd=25.0,
+))
+```
+
+A call with no score, an unknown tier or an exhausted budget raises `GuardianBlocked` and never reaches the provider. Tier caps live in [`dispatch.yaml`](src/cutover/governance/dispatch.yaml).
+
+[DeepSeek Harness](https://github.com/juliopessan/deepseek-harness) is a TypeScript agent runtime and is intentionally **not** vendored: Cutover talks to DeepSeek models through the API provider above. A `dsh` executor for sandboxed code generation was evaluated and deferred; see [docs/dsh-executor-evaluation.md](docs/dsh-executor-evaluation.md).
 
 ## Design principles
 
@@ -45,7 +82,7 @@ Every agent call
 
 ```text
 src/
-├── migration_sdk/
+├── cutover/
 │   ├── core/             # agent contracts, runtime and plugin registry
 │   ├── contracts/        # immutable migration and target contracts
 │   ├── economics/        # token and cost budget policies
@@ -53,7 +90,7 @@ src/
 │   ├── plugins/          # onboarding and future installable agents
 │   ├── targets/          # Microsoft Fabric and Databricks adapters
 │   └── telemetry/        # token, cost, latency and run events
-└── migration_agents/     # API, CLI and migration control-plane scaffold
+└── cutover/     # API, CLI and migration control-plane scaffold
 ```
 
 ## Current source coverage
@@ -102,7 +139,7 @@ Compression is used only when measured savings exceed the configured threshold. 
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 python -m pip install --upgrade pip
-pip install -e ".[dev]"
+pip install -e ".[dev,governance]"
 
 ruff check .
 mypy src
@@ -113,8 +150,7 @@ python -m build
 Run the existing control plane:
 
 ```bash
-migration-agents dry-run --system Snowflake
-uvicorn migration_agents.api:app --reload
+cutover onboard --answers answers.json
 ```
 
 ## CI quality gates

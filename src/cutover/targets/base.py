@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from migration_sdk.contracts.intake import MigrationIntake, TargetContract
+from cutover.contracts.intake import MigrationIntake, TargetContract
 
 
 class TargetAdapter(ABC):

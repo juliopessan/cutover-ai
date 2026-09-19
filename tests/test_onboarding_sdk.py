@@ -1,7 +1,7 @@
-from migration_sdk.contracts.intake import Readiness
-from migration_sdk.plugins.onboarding import OnboardingAgent
-from migration_sdk.targets.databricks import DatabricksTargetAdapter
-from migration_sdk.targets.fabric import FabricTargetAdapter
+from cutover.contracts.intake import Readiness
+from cutover.plugins.onboarding import OnboardingAgent
+from cutover.targets.databricks import DatabricksTargetAdapter
+from cutover.targets.fabric import FabricTargetAdapter
 
 
 def test_onboarding_blocks_missing_target():

@@ -3,8 +3,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from migration_sdk.contracts.intake import MigrationIntake, Readiness, TargetContract
-from migration_sdk.core.agent import AgentContext, AgentResult, MigrationAgent
+from cutover.contracts.intake import MigrationIntake, Readiness, TargetContract
+from cutover.core.agent import AgentContext, AgentResult, MigrationAgent
 
 
 class OnboardingAgent(MigrationAgent):
