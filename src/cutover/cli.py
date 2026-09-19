@@ -44,7 +44,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     commands = parser.add_subparsers(dest="command", required=True)
     onboard = commands.add_parser("onboard", help="Evaluate onboarding answers and report readiness.")
     onboard.add_argument("--answers", type=Path, required=True, help="JSON file with intake answers.")
+    serve = commands.add_parser("serve", help="Run the Cutover web application.")
+    serve.add_argument("--host", default="127.0.0.1")
+    serve.add_argument("--port", type=int, default=8000)
+    serve.add_argument("--data-dir", type=Path, default=None, help="Where the database and uploads live.")
     args = parser.parse_args(argv)
+    if args.command == "serve":
+        import uvicorn
+
+        from cutover.web import create_app
+
+        uvicorn.run(create_app(args.data_dir), host=args.host, port=args.port)
+        return 0
     if args.command == "onboard":
         return _onboard(args.answers)
     return 2

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Entrar' if mode == 'login' else 'Criar conta' }} — Cutover{% endblock %}
+{% block content %}
+<main class="auth">
+  <p class="eyebrow">{{ 'Acesso' if mode == 'login' else 'Nova conta' }}</p>
+  <h2>{{ 'Entre para enviar seus datasets.' if mode == 'login' else 'Crie sua conta.' }}</h2>
+  <form class="field-set" method="post" action="/{{ mode }}">
+    <label>E-mail<input type="email" name="email" required autocomplete="email" autofocus></label>
+    <label>Senha<input type="password" name="password" required minlength="{{ 1 if mode == 'login' else 10 }}" autocomplete="{{ 'current-password' if mode == 'login' else 'new-password' }}"></label>
+    {% if mode == 'signup' %}<p class="note">Mínimo de 10 caracteres.</p>{% endif %}
+    {% if error %}<div class="flag" role="alert"><span class="flag-k">Não foi possível continuar</span><p>{{ error }}</p></div>{% endif %}
+    <button class="btn" type="submit">{{ 'Entrar' if mode == 'login' else 'Criar conta' }}</button>
+  </form>
+  <p class="note" style="margin-top: 22px">
+    {% if mode == 'login' %}Ainda não tem conta? <a href="/signup">Criar conta</a>{% else %}Já tem conta? <a href="/login">Entrar</a>{% endif %}
+  </p>
+</main>
+{% endblock %}

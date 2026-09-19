@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Cutover — migração de dados governada{% endblock %}
+{% block content %}
+<main>
+<section class="hero">
+  <div class="stack">
+    <p class="eyebrow">Migração para Fabric e Databricks</p>
+    <h1 class="display">Cada número da sua migração é <span class="voice">medido,</span> não afirmado.</h1>
+    <p class="lede">O Cutover perfila seus dados, planeja a migração e coloca um portão de custo e qualidade na frente de toda chamada de IA. O que foi calculado aparece como medido; o que não pôde ser verificado aparece como alerta.</p>
+    <div class="cta-row">
+      <a class="btn" href="/signup">Enviar um dataset</a>
+      <a class="btn ghost" href="#como-funciona">Ver como funciona</a>
+    </div>
+  </div>
+
+  <div class="ledger" aria-label="Política de custo por nível">
+    <div class="ledger-head"><span class="live">Portão de custo</span><span class="meta">{{ '%02d' % tiers|length }} níveis</span></div>
+    {% for t in tiers %}
+    <div class="bar-row">
+      <div class="bar-label"><span>{{ t.id }} · score {{ t.score_min }}–{{ t.score_max }}</span><b class="sm">{{ '{:,}'.format(t.input_token_cap).replace(',', '.') }}</b></div>
+      <div class="bar-track"><div class="bar-fill" style="width: {{ (t.input_token_cap / max_cap * 100) | round(1) }}%"></div></div>
+    </div>
+    {% endfor %}
+    <div class="measured">
+      <span class="tick" aria-hidden="true">✓</span>
+      <p><span class="k">Lido, não estimado</span>Tetos de entrada (tokens) lidos agora de <code>dispatch.yaml</code>. Sem score, sem chamada.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="problema">
+  <p class="eyebrow">O problema</p>
+  <h2>IA em migração falha quando ninguém separa fato de suposição.</h2>
+  <div class="cols">
+    <div class="col"><h3>Custo sem teto</h3><p>Chamadas de modelo sem orçamento por artefato viram fatura, não engenharia. No Cutover o limite é checado antes da chamada.</p></div>
+    <div class="col"><h3>Qualidade afirmada</h3><p>Um modelo que revisa o próprio trabalho tende a aprová-lo. Contagens, tipos e duplicatas aqui são calculados dos bytes enviados.</p></div>
+    <div class="col"><h3>Decisão sem dono</h3><p>Mapeamentos sugeridos por IA exigem aprovação humana antes de qualquer uso. Nenhuma sugestão é aplicada sozinha.</p></div>
+  </div>
+</section>
+
+<section class="section" id="como-funciona">
+  <p class="eyebrow">Como funciona</p>
+  <h2>Do arquivo ao plano, com evidência em cada etapa.</h2>
+  <ol class="steps">
+    <li><span class="n">01</span><div><h3>Onboarding</h3><p>Perguntas de negócio, segurança e destino. A descoberta só começa quando os requisitos estão completos.</p></div><span class="status on">Disponível (CLI)</span></li>
+    <li><span class="n">02</span><div><h3>Upload e perfilamento</h3><p>Linhas, tipos, vazios, duplicatas, hash SHA-256 e compatibilidade dos nomes de coluna com Delta.</p></div><span class="status on">Disponível</span></li>
+    <li><span class="n">03</span><div><h3>Plano com portão de custo</h3><p>Sugestões de mapeamento por IA, roteadas por nível e limitadas por orçamento.</p></div><span class="status">Em desenvolvimento</span></li>
+    <li><span class="n">04</span><div><h3>Validação e aprovação</h3><p>Reconciliação determinística e aprovação humana antes de qualquer execução.</p></div><span class="status">Em desenvolvimento</span></li>
+  </ol>
+</section>
+
+<section class="section" id="governanca">
+  <p class="eyebrow">Governança de custo</p>
+  <h2>Cada nível define o que uma chamada pode custar.</h2>
+  <p class="body" style="margin: 20px 0 32px">Um score de complexidade escolhe o nível. Payloads acima do teto são comprimidos ou bloqueados, e o resultado é registrado num livro-razão de desperdício.</p>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Nível</th><th class="num">Score</th><th class="num">Entrada (tokens)</th><th class="num">Saída (tokens)</th><th>Aprovação humana</th></tr></thead>
+      <tbody>
+      {% for t in tiers %}
+        <tr><td class="name">{{ t.id }}</td><td class="num">{{ t.score_min }}–{{ t.score_max }}</td><td class="num">{{ '{:,}'.format(t.input_token_cap).replace(',', '.') }}</td><td class="num">{{ '{:,}'.format(t.output_token_cap).replace(',', '.') }}</td><td>{{ 'Obrigatória' if t.approval_required else 'Não' }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section" id="destinos">
+  <p class="eyebrow">Destinos</p>
+  <h2>Dois destinos, dois contratos independentes.</h2>
+  <div class="cols two">
+    <div class="col"><h3>Microsoft Fabric</h3><p>OneLake, Lakehouse ou Warehouse, pipelines do Data Factory, Purview e restrições de capacidade.</p></div>
+    <div class="col"><h3>Databricks</h3><p>Unity Catalog, Delta Lake, Lakeflow, políticas de computação e controles de acesso.</p></div>
+  </div>
+</section>
+
+<section class="section">
+  <p class="eyebrow">Comece agora</p>
+  <h2>Envie um CSV e veja o que está nele.</h2>
+  <div class="cta-row" style="margin-top: 28px"><a class="btn" href="/signup">Criar conta</a><a class="btn ghost" href="/login">Entrar</a></div>
+</section>
+</main>
+<footer class="foot">
+  <p>Limite de segurança: o Cutover nunca executa operações destrutivas na origem. Extração, implantação e virada exigem credenciais, política e autorização humana explícitas.</p>
+  <span class="mono">Cutover</span>
+</footer>
+{% endblock %}

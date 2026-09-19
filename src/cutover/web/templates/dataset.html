@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}{{ dataset.filename }} — Cutover{% endblock %}
+{% block content %}
+<main>
+  <div class="app-head">
+    <p class="eyebrow">Perfil do dataset · {{ target_label }}</p>
+    <h2>{{ dataset.filename }}</h2>
+    <p class="lede">Os números ao lado foram calculados do arquivo enviado. A decisão de migrar continua <span class="voice">sua.</span></p>
+  </div>
+  <div class="dataset-grid">
+    <div class="ledger" aria-label="Perfil medido">
+      <div class="ledger-head"><span class="live">Livro de medições</span><span class="meta">{{ '{:,}'.format(dataset.size_bytes).replace(',', '.') }} bytes</span></div>
+      {% set total = profile.total_cells %}
+      <div class="bar-row">
+        <div class="bar-label"><span>Células preenchidas</span><b>{{ '{:,}'.format(profile.total_cells - profile.empty_cells).replace(',', '.') }}</b></div>
+        <div class="bar-track"><div class="bar-fill mint" style="width: {{ ((total - profile.empty_cells) / total * 100) if total else 0 }}%"></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label"><span>Células vazias</span><b>{{ '{:,}'.format(profile.empty_cells).replace(',', '.') }}</b></div>
+        <div class="bar-track"><div class="bar-fill clay" style="width: {{ (profile.empty_cells / total * 100) if total else 0 }}%"></div></div>
+      </div>
+      <div class="figs">
+        <div class="fig"><b>{{ profile.rows }}</b><span>linhas</span></div>
+        <div class="fig"><b>{{ '%02d' % profile.columns|length }}</b><span>colunas</span></div>
+        <div class="fig"><b>{{ '%02d' % profile.duplicate_rows }}</b><span>duplicadas</span></div>
+        <div class="fig"><b>{{ '%02d' % profile.flags|length }}</b><span>alertas</span></div>
+      </div>
+      <div class="measured">
+        <span class="tick" aria-hidden="true">✓</span>
+        <p><span class="k">Medido, não estimado</span>Calculado do arquivo enviado. SHA-256 <code>{{ profile.sha256 }}</code>. Recalcule com <code>shasum -a 256</code> e confira.</p>
+      </div>
+    </div>
+
+    <div class="stack">
+      <p class="eyebrow">Alertas</p>
+      {% if profile.flags %}
+      <div class="flags">
+        {% for f in profile.flags %}
+        <div class="flag"><span class="flag-k">{{ f.title }}</span>
+          <p>{% for item in f['items'] %}<code>{{ item }}</code>{{ ', ' if not loop.last }}{% endfor %}</p>
+          <p>{{ f.action }}</p></div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="note">Nenhum alerta gerado pelas verificações atuais.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <section class="section">
+    <p class="eyebrow">Colunas</p>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Coluna</th><th>Tipo inferido</th><th class="num">Vazias</th><th class="num">% vazia</th></tr></thead>
+      <tbody>{% for c in profile.columns %}
+        <tr><td class="name">{{ c.name }}</td><td>{{ c.type }}</td><td class="num">{{ c.nulls }}</td><td class="num">{{ '%.1f' % (c.null_ratio * 100) }}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+  </section>
+  <p class="note" style="padding-bottom: 56px"><a href="/app">← Voltar aos datasets</a></p>
+</main>
+{% endblock %}

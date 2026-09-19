@@ -13,6 +13,16 @@ Cutover is a Python SDK and control plane that plans, maps and validates enterpr
 
 Developer tools: see [RTK Integration](RTK.md) for repository helpers to install and initialize the `rtk` CLI for token-optimized command output.
 
+## Run as a SaaS
+
+```bash
+pip install -e ".[dev,governance]"
+cutover serve --data-dir ./cutover-data      # http://127.0.0.1:8000
+# or: docker compose up --build
+```
+
+The app serves a landing page, account signup and login, and a dataset upload that is profiled deterministically (rows, types, empty cells, duplicates, SHA-256, Delta-compatible column names). Nothing is sent to an LLM at upload time. Set `CUTOVER_COOKIE_SECURE=1` behind HTTPS. Data lives in `CUTOVER_DATA_DIR` (SQLite plus uploads); this is a single-node setup, so back that directory up.
+
 ## Governed AI calls (powered by Tollgate)
 
 Cutover routes every LLM call through [Tollgate](https://github.com/juliopessan/toolgate): a complexity score picks a tier (Solar to Aurora), the Guardian admits, compresses or blocks the payload, and the outcome is recorded.

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Cutover{% endblock %}</title>
+<meta name="description" content="Migração de dados governada para Microsoft Fabric e Databricks. Cada número é medido, não afirmado.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter+Tight:wght@400;500;600;700;800&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/ledger.css">
+</head>
+<body>
+<div class="page">
+  <header class="nav">
+    <a class="wordmark" href="/">Cutover</a>
+    <nav class="nav-links" aria-label="Principal">
+      {% if user %}
+        <a href="/app">Meus datasets</a>
+        <span class="mono crumb">{{ user.email }}</span>
+        <form method="post" action="/logout"><button class="btn ghost small" type="submit">Sair</button></form>
+      {% else %}
+        <a class="hide-sm" href="/#como-funciona">Como funciona</a>
+        <a class="hide-sm" href="/#governanca">Governança</a>
+        <a href="/login">Entrar</a>
+        <a class="btn small" href="/signup">Criar conta</a>
+      {% endif %}
+    </nav>
+  </header>
+  {% block content %}{% endblock %}
+</div>
+</body>
+</html>

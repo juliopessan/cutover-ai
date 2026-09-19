@@ -1,5 +1,10 @@
 services:
-  api:
+  cutover:
     build: .
     ports: ["8000:8000"]
-    volumes: ["./artifacts:/app/artifacts"]
+    volumes: ["cutover-data:/data"]
+    environment:
+      # Set to 1 when served over HTTPS so the session cookie is Secure.
+      CUTOVER_COOKIE_SECURE: "0"
+volumes:
+  cutover-data:
