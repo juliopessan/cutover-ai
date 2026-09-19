@@ -1,5 +1,5 @@
-from migration_sdk.contracts.intake import MigrationIntake, TargetContract
-from migration_sdk.targets.base import TargetAdapter
+from cutover.contracts.intake import MigrationIntake, TargetContract
+from cutover.targets.base import TargetAdapter
 
 
 class DatabricksTargetAdapter(TargetAdapter):

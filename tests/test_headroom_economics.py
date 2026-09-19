@@ -1,9 +1,9 @@
 import pytest
 
-from migration_sdk.economics.budget import BudgetExceededError, BudgetPolicy
-from migration_sdk.optimization.headroom import HeadroomOptimizer, HeadroomUnavailableError
-from migration_sdk.telemetry.events import CostEstimate, TokenUsage
-from migration_sdk.telemetry.sink import InMemoryTelemetrySink
+from cutover.economics.budget import BudgetExceededError, BudgetPolicy
+from cutover.optimization.headroom import HeadroomOptimizer, HeadroomUnavailableError
+from cutover.telemetry.events import CostEstimate, TokenUsage
+from cutover.telemetry.sink import InMemoryTelemetrySink
 
 
 def count_tokens(messages):
@@ -51,7 +51,7 @@ def test_budget_can_fail_closed():
 
 
 def test_in_memory_telemetry_aggregates_usage_and_cost():
-    from migration_sdk.telemetry.events import TelemetryEvent
+    from cutover.telemetry.events import TelemetryEvent
 
     sink = InMemoryTelemetrySink()
     sink.emit(

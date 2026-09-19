@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable, Sequence
 
-from migration_sdk.economics.budget import BudgetPolicy
+from cutover.economics.budget import BudgetPolicy
 
 
 class HeadroomUnavailableError(RuntimeError):
@@ -50,7 +50,7 @@ class HeadroomOptimizer:
             from headroom import compress
         except ImportError as exc:
             raise HeadroomUnavailableError(
-                "Install the optional dependency with: pip install 'data-migration-multi-agent[headroom]'"
+                "Install the optional dependency with: pip install 'cutover-ai[headroom]'"
             ) from exc
         return compress
 
@@ -61,7 +61,7 @@ class HeadroomOptimizer:
         # for test environments and CI where optional deps may be missing.
         if self._compressor is None:
             raise HeadroomUnavailableError(
-                "Install the optional dependency with: pip install 'data-migration-multi-agent[headroom]'"
+                "Install the optional dependency with: pip install 'cutover-ai[headroom]'"
             )
 
         compressor = self._load_compressor()

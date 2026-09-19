@@ -16,7 +16,7 @@ The migration SDK owns telemetry, budgets and quality gates. Headroom is integra
 Install explicitly:
 
 ```bash
-pip install "data-migration-multi-agent[headroom]"
+pip install "cutover-ai[headroom]"
 ```
 
 The adapter imports `headroom.compress` lazily. This keeps the core SDK deployable in restricted environments and permits a proxy-based deployment later without changing agent contracts.

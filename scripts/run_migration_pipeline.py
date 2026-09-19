@@ -42,7 +42,7 @@ def main():
     print("""
 ╔════════════════════════════════════════════════════════════════════════════╗
 ║         MIGRAÇÃO CLOUDERA → MICROSOFT FABRIC - PIPELINE EXECUTIVO         ║
-║                    Data Migration Multi-Agent Factory                      ║
+║                    Cutover                      ║
 ╚════════════════════════════════════════════════════════════════════════════╝
     """)
     

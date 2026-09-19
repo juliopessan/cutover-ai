@@ -277,7 +277,7 @@ SEMANA 6: FASE 5
 ═══════════════════════════════════════════════════════════════════════════════
 
 Gerado em: {datetime.now().strftime('%d/%m/%Y às %H:%M:%S')}
-Data Migration Multi-Agent Factory | Avanade Global AI Hub
+Cutover | Avanade Global AI Hub
 
 ═══════════════════════════════════════════════════════════════════════════════
 

@@ -42,7 +42,7 @@ def main():
     print("""
 ╔════════════════════════════════════════════════════════════════════════════╗
 ║        MIGRAÇÃO SNOWFLAKE → DATABRICKS - PIPELINE EXECUTIVO                ║
-║                    Data Migration Multi-Agent Factory                      ║
+║                    Cutover                      ║
 ╚════════════════════════════════════════════════════════════════════════════╝
     """)
 

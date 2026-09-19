@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from migration_sdk.telemetry.events import CostEstimate, TokenUsage
+from cutover.telemetry.events import CostEstimate, TokenUsage
 
 
 class BudgetExceededError(RuntimeError):

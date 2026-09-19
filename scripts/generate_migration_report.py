@@ -175,7 +175,7 @@ def generate_html_report() -> str:
         
         <!-- Footer -->
         <div class="footer">
-            <p>🔐 Relatório confidencial | Criado pela Data Migration Multi-Agent Factory</p>
+            <p>🔐 Relatório confidencial | Criado pela Cutover</p>
             <p style="margin-top: 10px; font-size: 0.8em;">© 2026 | Avanade Global AI Hub</p>
         </div>
     </div>
