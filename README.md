@@ -51,7 +51,7 @@ Os dados ficam em `CUTOVER_DATA_DIR` (SQLite mais os uploads), o que torna esta 
 
 ## Prova medida
 
-Rodamos o perfilador e o app real sobre os 4 seeds públicos do exemplo dbt da Cloudera (4.771 linhas): hash SHA-256 conferido em 4 de 4 arquivos, 6 de 6 defeitos injetados detectados e nenhum alerta falso nos arquivos limpos. O perfil leva de 1 a 25 ms por arquivo nesta máquina. Os números completos, com data, commit e ambiente, estão na landing e em [`profile.json`](src/cutover/web/benchmarks/profile.json). Refaça com:
+Rodamos o perfilador e o app real sobre os 4 seeds públicos do exemplo dbt da Cloudera (4.771 linhas): hash SHA-256 conferido em 4 de 4 arquivos, 6 de 6 defeitos injetados detectados e nenhum alerta falso nos arquivos limpos. O perfil leva de 1 a 55 ms por arquivo nesta máquina. Os números completos, com data, commit e ambiente, estão na landing e em [`profile.json`](src/cutover/web/benchmarks/profile.json). Refaça com:
 
 ```bash
 make benchmark
