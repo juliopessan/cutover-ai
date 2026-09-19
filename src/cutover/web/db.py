@@ -47,6 +47,16 @@ CREATE TABLE IF NOT EXISTS mapping_runs (
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_mapping_runs_dataset ON mapping_runs(dataset_id, id DESC);
+CREATE TABLE IF NOT EXISTS manual_baselines (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    dataset_id INTEGER NOT NULL REFERENCES datasets(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    seconds INTEGER NOT NULL,
+    method TEXT NOT NULL,                       -- stopwatch | manual
+    note TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_baselines_dataset ON manual_baselines(dataset_id, id DESC);
 CREATE INDEX IF NOT EXISTS idx_datasets_user ON datasets(user_id, id DESC);
 """
 

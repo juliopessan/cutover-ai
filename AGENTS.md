@@ -78,4 +78,4 @@ docs/                 notas e o relatório em PDF; docs/reports/
 
 ## Limitações conhecidas
 
-O app é de nó único (SQLite e uploads em disco), sem HTTPS por padrão, com cadastro aberto e limite de execuções ao vivo por usuário. O score que escolhe o nível é heurístico e precisa de calibração. O relatório consolidado por cliente e o plano de migração não existem.
+O app é de nó único (SQLite e uploads em disco), sem HTTPS por padrão, com cadastro aberto e limite de execuções ao vivo por usuário. O score que escolhe o nível é heurístico e precisa de calibração. O plano de migração não existe (fora do escopo do AI-IS). O baseline manual é informado pelo analista, não medido por um instrumento independente.

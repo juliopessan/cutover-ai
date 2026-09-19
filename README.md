@@ -32,7 +32,7 @@ O Cutover está em alfa. Abaixo, o que já dá para usar e o que ainda está sen
 | Mapeamento ao vivo | No app, “Sugerir mapeamento com IA” roda uma chamada governada e mostra cada etapa em tempo real: score, nível, portão, chamada, tokens, custo e verificações determinísticas. Só nomes e tipos de colunas vão ao modelo | Disponível (web) |
 | Aprovação e relatório | Cada execução é salva; uma pessoa aprova ou rejeita a sugestão (a aprovação só é permitida se todas as verificações passaram), baixa o mapeamento em CSV e gera o relatório AS-IS do dataset, pronto para PDF | Disponível (web) |
 | Política de refinamento | `ArtifactBranch` decide aceitar, refinar, escalar, paralelizar ou parar, por pass rate e custo | Disponível (SDK), ainda não ligado aos agentes |
-| Relatório consolidado por cliente | Consolidação dos achados de vários datasets | Em desenvolvimento |
+| Relatório consolidado e baseline manual | Consolidação de todos os datasets (alertas repetidos, relações por nome de coluna, sensibilidade, custo e economia) e registro do tempo manual (cronômetro ou minutos) para a economia usar números informados | Disponível (web) |
 
 Extração, implantação e virada nunca são automáticas; veja o [limite de segurança](#limite-de-segurança).
 

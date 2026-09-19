@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relatório consolidado AS-IS — Cutover</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter+Tight:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/ledger.css">
+<link rel="stylesheet" href="/static/report.css">
+</head>
+<body class="report-body">
+<div class="toolbar print-hide"><a href="/app">← Meus datasets</a><a href="javascript:window.print()">Imprimir ou salvar em PDF</a></div>
+<div class="doc">
+<header class="rhead"><span class="brand"><img src="/static/favicon.svg" alt="">Cutover</span><span class="tag">Relatório consolidado / V1</span></header>
+{% if not c %}
+<section class="cover"><p class="eyebrow" style="margin-top: 26px">Relatório consolidado de assessment AS-IS</p><h1>Sem datasets</h1>
+  <div class="flag"><span class="flag-k">Nada a consolidar</span><p>Envie ao menos um dataset em <a href="/app">Meus datasets</a>.</p></div></section>
+{% else %}
+{% set st = c.states %}
+<section class="cover">
+  <p class="eyebrow" style="margin-top: 26px">Relatório consolidado de assessment AS-IS</p>
+  <h1>{{ c.datasets }} {{ 'dataset' if c.datasets == 1 else 'datasets' }}, um estado atual</h1>
+  <p class="lede">Consolidação do levantamento AS-IS de todos os datasets desta conta, feito com IA e entregue sem migrar de plataforma. Cada número medido vem do perfil calculado dos arquivos; sugestões de modelo só valem depois da decisão de uma pessoa.</p>
+  <dl class="meta">
+    <div><dt>Datasets</dt><dd>{{ c.datasets }}</dd></div>
+    <div><dt>Linhas</dt><dd>{{ c.rows | br_int }}</dd></div>
+    <div><dt>Colunas</dt><dd>{{ c.columns | br_int }}</dd></div>
+    <div><dt>Preparado para</dt><dd>{{ user.email }}</dd></div>
+    <div><dt>Gerado em</dt><dd>{{ generated_at }}</dd></div>
+  </dl>
+</section>
+
+<section class="dark">
+  <p class="eyebrow">Resumo executivo</p>
+  <h2 style="font-size: 26px; letter-spacing: -0.02em; margin-bottom: 16px">Resumo executivo: estado atual dos dados</h2>
+  <p>Foram levantados <b>{{ c.datasets }} datasets</b> ({{ c.rows | br_int }} linhas, {{ c.columns | br_int }} colunas, {{ c.bytes | br_int }} bytes). O perfil determinístico gerou <b>{{ c.alerts_total }} {{ 'alerta' if c.alerts_total == 1 else 'alertas' }}</b> no total. Nenhuma linha de dados foi enviada a um modelo de IA.</p>
+  <p>Sobre os mapeamentos sugeridos: <b>{{ st.get('approved', 0) }} aprovado(s)</b>, {{ st.get('pending', 0) }} aguardando decisão, {{ st.get('rejected', 0) }} rejeitado(s) e {{ st.get('none', 0) }} sem sugestão. As {{ c.runs_total }} execuções de IA custaram <b>US$ {{ c.cost_total | br_dec(6) }}</b>.</p>
+  {% if c.conflicts or c.hints %}
+  <h3 style="font-size: 15px; margin: 22px 0 10px">Pontos de atenção</h3>
+  <ul>
+    {% if c.conflicts %}<li><b>{{ c.conflicts | length }} coluna(s) com o mesmo nome e tipos diferentes</b> entre datasets: risco de integração.</li>{% endif %}
+    {% if c.hints %}<li><b>{{ c.hints | length }} coluna(s) com possível dado pessoal</b> (heurística por nome, não verificado).</li>{% endif %}
+    {% if c.alerts_total %}<li><b>{{ c.alerts_total }} alerta(s) de qualidade</b> a tratar antes de qualquer uso no destino.</li>{% endif %}
+  </ul>
+  {% endif %}
+  <h3 style="font-size: 15px; margin: 22px 0 10px">Decisão pedida</h3>
+  <ol>
+    {% if st.get('pending', 0) or st.get('none', 0) %}<li><b>Decidir os mapeamentos pendentes</b> e gerar sugestão para os datasets que ainda não têm.</li>{% endif %}
+    <li><b>Tratar os alertas e confirmar a sensibilidade</b> das colunas sinalizadas com os donos dos dados.</li>
+    {% if c.with_baseline < c.datasets %}<li><b>Registrar o baseline manual</b> dos datasets restantes ({{ c.datasets - c.with_baseline }}) para fechar a economia com números informados.</li>{% endif %}
+  </ol>
+</section>
+
+<section class="sec">
+  <div class="sec-head"><span class="n">01</span><p class="eyebrow">Visão geral</p><h2>Datasets levantados</h2></div>
+  <h3 class="title">Um quadro por dataset, calculado dos arquivos</h3>
+  <div class="tbl-wrap"><table class="r">
+    <thead><tr><th>Dataset</th><th>Destino</th><th class="num">Linhas</th><th class="num">Col.</th><th class="num">Alertas</th><th>Mapeamento</th><th class="num">Custo IA (US$)</th><th></th></tr></thead>
+    <tbody>{% for i in items %}
+      <tr><td class="k">{{ i.dataset.filename }}</td><td>{{ targets.get(i.dataset.target, i.dataset.target) }}</td><td class="num">{{ i.profile.rows | br_int }}</td><td class="num">{{ i.profile.columns | length }}</td><td class="num">{{ i.profile.flags | length }}</td>
+        <td>{{ {'approved': 'Aprovado', 'rejected': 'Rejeitado', 'pending': 'Aguardando decisão'}.get(i.run.decision if i.run else None, 'Sem sugestão') }}</td>
+        <td class="num">{{ ((i.runs | sum(attribute='cost_usd')) | br_dec(6)) if i.runs else '—' }}</td>
+        <td class="print-hide"><a href="/app/datasets/{{ i.dataset.id }}/report">Relatório</a></td></tr>
+    {% endfor %}</tbody></table></div>
+</section>
+
+<section class="sec">
+  <div class="sec-head"><span class="n">02</span><p class="eyebrow">Qualidade</p><h2>Alertas de qualidade</h2></div>
+  <h3 class="title">O que se repete entre os datasets</h3>
+  {% if c.alert_kinds %}
+  <table class="r">
+    <thead><tr><th>Tipo de alerta</th><th class="num">Ocorrências</th></tr></thead>
+    <tbody>{% for kind, n in c.alert_kinds %}<tr><td class="k">{{ {'column_names': 'Nomes de coluna incompatíveis com Delta', 'duplicate_columns': 'Colunas duplicadas (sem diferenciar maiúsculas)', 'identical_columns': 'Colunas com conteúdo idêntico', 'mixed_types': 'Colunas com tipos misturados', 'mostly_empty': 'Colunas majoritariamente vazias', 'duplicate_rows': 'Linhas duplicadas', 'malformed_rows': 'Linhas malformadas'}.get(kind, kind) }}</td><td class="num">{{ n }}</td></tr>{% endfor %}</tbody></table>
+  <p>Alertas repetidos em vários datasets costumam ter uma causa comum na origem; vale tratá-los uma vez, na fonte.</p>
+  {% else %}<p>Nenhum alerta foi gerado pelas verificações atuais.</p>{% endif %}
+</section>
+
+<section class="sec">
+  <div class="sec-head"><span class="n">03</span><p class="eyebrow">Relações</p><h2>Relações entre datasets</h2></div>
+  <h3 class="title">Colunas com o mesmo nome em mais de um dataset</h3>
+  <p>Comparação por <b>nome de coluna</b> e por tipo medido. É uma heurística: não compara valores, então não prova que as colunas se relacionam.</p>
+  {% if c.conflicts %}
+  <div class="flag"><span class="flag-k">Mesmo nome, tipos diferentes</span>
+    <p>{% for x in c.conflicts %}<code>{{ x.column }}</code> ({{ x.types | join(' / ') }} em {{ x.datasets | join(', ') }}){{ '; ' if not loop.last }}{% endfor %}</p>
+    <p>Alinhe o tipo antes de integrar esses datasets no destino.</p></div>
+  {% endif %}
+  {% if c.shared %}
+  <table class="r">
+    <thead><tr><th>Coluna</th><th>Datasets</th><th>Tipo</th><th>Candidata a chave em</th></tr></thead>
+    <tbody>{% for x in c.shared %}<tr><td class="k">{{ x.column }}</td><td>{{ x.datasets | join(', ') }}</td><td>{{ x.types | join(', ') }}</td><td>{{ x.key_in | join(', ') if x.key_in else '—' }}</td></tr>{% endfor %}</tbody></table>
+  {% elif not c.conflicts %}<p>Nenhuma coluna de mesmo nome aparece em mais de um dataset.</p>{% endif %}
+</section>
+
+<section class="sec">
+  <div class="sec-head"><span class="n">04</span><p class="eyebrow">Sensibilidade</p><h2>Possíveis dados pessoais</h2></div>
+  <h3 class="title">Colunas sinalizadas por nome, a confirmar</h3>
+  {% if c.hints %}
+  <div class="flag"><span class="flag-k">Possíveis dados pessoais, não verificado</span>
+    <p>{% for h in c.hints %}<code>{{ h.dataset }}.{{ h.column }}</code> ({{ h.reason }}){{ ', ' if not loop.last }}{% endfor %}</p>
+    <p>A lista vem só dos nomes das colunas; os valores não foram inspecionados. Confirme com os donos dos dados e trate conforme a LGPD.</p></div>
+  {% else %}<p>Nenhum nome de coluna sugere dados pessoais. Isso não garante que não existam: os valores não foram inspecionados.</p>{% endif %}
+</section>
+
+<section class="sec">
+  <div class="sec-head"><span class="n">05</span><p class="eyebrow">Economia</p><h2>Tempo, custo e economia</h2></div>
+  <h3 class="title">O que foi medido, o que foi informado e o que é premissa</h3>
+  <table class="r">
+    <thead><tr><th>Indicador</th><th class="num">Valor</th><th>Origem</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Tempo de IA somado (perfil e sugestão)</td><td class="num">{{ c.ai_seconds | br_dec(0) }} s</td><td>Medido</td></tr>
+      <tr><td class="k">Tempo entre sugestão e decisão, somado</td><td class="num">{{ c.review_minutes | br_dec(1) }} min</td><td>Medido; limite superior do esforço de revisão</td></tr>
+      <tr><td class="k">Custo de IA somado (US$)</td><td class="num">{{ c.cost_total | br_dec(6) }}</td><td>Medido pelo provedor</td></tr>
+      <tr><td class="k">Datasets com decisão tomada</td><td class="num">{{ c.decided }} de {{ c.datasets }}</td><td>Banco de dados</td></tr>
+      <tr><td class="k">Datasets com baseline manual informado</td><td class="num">{{ c.with_baseline }} de {{ c.decided }}</td><td>Informado pelo analista</td></tr>
+      <tr><td class="k">Horas devolvidas ao time (somadas)</td><td class="num">{{ c.saving_hours | br_dec(2) }} h</td><td>{{ 'Baseline informado' if c.with_baseline == c.decided and c.decided else 'Mistura de baseline informado e premissa' }}</td></tr>
+      <tr><td class="k">Economia estimada (US$)</td><td class="num">{{ c.saving_usd | br_dec(0) }}</td><td>Custo horário é premissa</td></tr>
+    </tbody></table>
+  {% if c.with_baseline < c.decided %}
+  <div class="flag"><span class="flag-k">Premissas não verificadas</span><p>{{ c.decided - c.with_baseline }} de {{ c.decided }} datasets decididos usam a <code>premissa ilustrativa de 2 h à mão</code>, e o custo horário é sempre <code>premissa ilustrativa</code>. Registre o baseline na tela de cada dataset.</p></div>
+  {% else %}
+  <div class="flag"><span class="flag-k">Baseline informado, não verificado</span><p>As horas à mão foram <code>informadas pelo analista</code>; nenhum instrumento independente as mede. O custo horário continua sendo <code>premissa ilustrativa</code>.</p></div>
+  {% endif %}
+  <hr>
+  <h4>Handoff</h4>
+  <table class="r"><thead><tr><th>Campo</th><th>Valor</th></tr></thead><tbody>
+    <tr><td>Datasets</td><td>{{ c.datasets }}</td></tr>
+    <tr><td>Mapeamentos aprovados</td><td>{{ st.get('approved', 0) }} de {{ c.datasets }}</td></tr>
+    <tr><td>Alertas em aberto</td><td>{{ c.alerts_total }}</td></tr>
+    <tr><td>Próximo passo recomendado</td><td>{% set todo = [] %}{% if st.get('pending', 0) or st.get('none', 0) %}{% set _ = todo.append('decidir os mapeamentos pendentes') %}{% endif %}{% if c.alerts_total %}{% set _ = todo.append('tratar os alertas') %}{% endif %}{% if c.with_baseline < c.decided %}{% set _ = todo.append('registrar o baseline manual dos datasets restantes') %}{% endif %}{{ (todo | join('; ') | capitalize ~ '.') if todo else 'Usar os mapeamentos aprovados como insumo do destino.' }}</td></tr>
+  </tbody></table>
+</section>
+{% endif %}
+</div>
+</body>
+</html>

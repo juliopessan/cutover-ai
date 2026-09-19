@@ -203,3 +203,58 @@ def test_report_reprofiles_datasets_stored_with_an_older_profile(tmp_path):
     assert "Este perfil é de uma versão anterior" not in client.get(location + "/report").text
     stored = json.loads(sqlite3.connect(db_path).execute("SELECT profile_json FROM datasets").fetchone()[0])
     assert stored["profile_version"] == 2 and "distinct" in stored["columns"][0]
+
+
+def upload(client, name, csv_text, target="databricks"):
+    return client.post("/app/datasets", files={"file": (name, csv_text)}, data={"target": target}).headers["location"]
+
+
+def test_baseline_is_validated_owned_and_replaces_the_premise(tmp_path):
+    client, location = make(tmp_path, FakeProvider())
+    assert client.post(location + "/baseline", data={"seconds": 5}).status_code == 400
+    assert client.post(location + "/baseline", data={"seconds": 90000}).status_code == 400
+    assert client.post(location + "/baseline", data={"seconds": 3600, "method": "manual"}).json()["ok"]
+    run_id, _ = run_once(client, location)
+    client.post(f"{location}/mapping/runs/{run_id}/decision", data={"decision": "approved"})
+    report = client.get(location + "/report").text
+    assert "Informado pelo analista" in report and "Baseline informado, não verificado" in report
+    assert "1,00 h" in report and "Premissas não verificadas" not in report.split("Economia estimada")[1]
+    assert "Informado em minutos" in client.get(location).text
+    client.post("/logout")
+    client.post("/signup", data={"email": "b@example.com", "password": "correct-horse-1"})
+    assert client.post(location + "/baseline", data={"seconds": 600}).status_code == 404
+
+
+def test_without_a_baseline_the_report_keeps_the_premise_flag(tmp_path):
+    client, location = make(tmp_path, FakeProvider())
+    run_id, _ = run_once(client, location)
+    client.post(f"{location}/mapping/runs/{run_id}/decision", data={"decision": "approved"})
+    report = client.get(location + "/report").text
+    assert "Premissa ilustrativa" in report and "Premissas não verificadas" in report
+
+
+def test_consolidated_report_totals_relations_and_conflicts(tmp_path):
+    client, first = make(tmp_path, FakeProvider())  # id,unit price,amount
+    second = upload(client, "orders.csv", "id,amount,name\n1,abc,Ana\n2,x,Bruno\n")
+    run_id, _ = run_once(client, first)
+    client.post(f"{first}/mapping/runs/{run_id}/decision", data={"decision": "approved"})
+    client.post(first + "/baseline", data={"seconds": 1800})
+    page = client.get("/app/report").text
+    assert "2 datasets, um estado atual" in page and "Relatório consolidado" in page
+    assert "Mesmo nome, tipos diferentes" in page and "amount" in page  # decimal in one file, text in the other
+    assert "Possíveis dados pessoais" in page  # name column in orders.csv
+    assert "1 de 1" in page  # baseline coverage among decided datasets
+    assert "Sem sugestão" in page and "Aprovado" in page
+    assert "Relatório consolidado (2 datasets)" in client.get("/app").text
+    assert second in page or "orders.csv" in page
+
+
+def test_consolidated_report_is_private_and_handles_no_datasets(tmp_path):
+    client = TestClient(create_app(tmp_path, provider_factory=lambda: FakeProvider(), pricing=PRICING), follow_redirects=False)
+    assert client.get("/app/report").headers["location"] == "/login"
+    client.post("/signup", data={"email": "a@example.com", "password": "correct-horse-1"})
+    assert "Sem datasets" in client.get("/app/report").text
+    upload(client, "a.csv", "id,name\n1,a\n")
+    client.post("/logout")
+    client.post("/signup", data={"email": "b@example.com", "password": "correct-horse-1"})
+    assert "orders" not in client.get("/app/report").text and "Sem datasets" in client.get("/app/report").text

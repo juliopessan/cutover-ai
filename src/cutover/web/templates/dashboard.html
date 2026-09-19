@@ -18,6 +18,7 @@
 
   <section class="section" style="margin-top: 40px">
     <p class="eyebrow">Histórico</p>
+    {% if datasets | length > 0 %}<p class="note" style="margin-bottom: 14px"><a class="btn small" href="/app/report">Relatório consolidado ({{ datasets | length }} {{ 'dataset' if datasets | length == 1 else 'datasets' }})</a></p>{% endif %}
     {% if datasets %}
     <div class="tbl-wrap"><table>
       <thead><tr><th>Arquivo</th><th>Destino</th><th class="num">Linhas</th><th class="num">Alertas</th><th>Mapeamento</th><th>Enviado em</th><th></th></tr></thead>

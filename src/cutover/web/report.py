@@ -142,7 +142,27 @@ def column_note(c: dict[str, Any]) -> str:
     return "; ".join(notes)
 
 
-def dataset_analysis(profile: dict[str, Any], run: dict[str, Any] | None, history: list[dict[str, Any]]) -> dict[str, Any]:
+def dataset_economy(run: dict[str, Any] | None, baselines: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """Time and money for one dataset. The manual side is the analyst-reported baseline when there is one."""
+    if not run or run.get("elapsed_ms") is None:
+        return None
+    assumptions = {k: v["value"] for k, v in ASSUMPTIONS.items()}
+    reported = statistics.median(b["seconds"] for b in baselines) / 3600 if baselines else None
+    manual_hours = reported if reported is not None else assumptions["manual_hours"]
+    review = _seconds_between(run.get("created_at"), run.get("decided_at")) if run["decision"] != "pending" else None
+    ai_seconds = run["elapsed_ms"] / 1000
+    hours_spent = (ai_seconds + (review or 0)) / 3600
+    saving_hours = manual_hours - hours_spent if review is not None else None
+    return {
+        "ai_seconds": ai_seconds, "review_seconds": review, "manual_hours": manual_hours,
+        "manual_is_reported": reported is not None, "baseline_count": len(baselines), "rate_usd": assumptions["rate_usd"],
+        "saving_hours": saving_hours,
+        "saving_usd": saving_hours * assumptions["rate_usd"] - (run.get("cost_usd") or 0) if saving_hours is not None else None,
+    }
+
+
+def dataset_analysis(profile: dict[str, Any], run: dict[str, Any] | None, history: list[dict[str, Any]],
+                     baselines: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     """Everything the dataset report shows beyond the raw profile. Measured values and assumptions stay separate."""
     from cutover.web.profiling import INVALID_NAME_CHARS
 
@@ -158,21 +178,56 @@ def dataset_analysis(profile: dict[str, Any], run: dict[str, Any] | None, histor
         ("Linhas lidas sem descarte", rows / (rows + discarded) if rows + discarded else 1.0),
     ]
     notes = {c["name"]: column_note(c) for c in columns}
-    economy = None
-    if run and run.get("elapsed_ms") is not None:
-        assumptions = {k: v["value"] for k, v in ASSUMPTIONS.items()}
-        review = _seconds_between(run.get("created_at"), run.get("decided_at")) if run["decision"] != "pending" else None
-        ai_seconds = run["elapsed_ms"] / 1000
-        hours_spent = (ai_seconds + (review or 0)) / 3600
-        economy = {
-            "ai_seconds": ai_seconds, "review_seconds": review, "manual_hours": assumptions["manual_hours"],
-            "rate_usd": assumptions["rate_usd"],
-            "saving_hours": assumptions["manual_hours"] - hours_spent if review is not None else None,
-            "saving_usd": (assumptions["manual_hours"] - hours_spent) * assumptions["rate_usd"] - (run.get("cost_usd") or 0)
-            if review is not None else None,
-        }
+    economy = dataset_economy(run, baselines or [])
     return {
         "quality": quality, "notes": notes, "economy": economy, "has_stats": "distinct" in (columns[0] if columns else {}),
         "key_columns": [c["name"] for c in columns if c.get("is_key_candidate")],
         "history": history,
+    }
+
+
+def _norm(name: str) -> str:
+    return "".join(ch for ch in name.lower() if ch.isalnum())
+
+
+def consolidated_analysis(items: list[dict[str, Any]]) -> dict[str, Any]:
+    """Cross-dataset view for one client. ``items`` carry dataset, profile, best run, all runs and baselines."""
+    from collections import Counter
+
+    total_rows = sum(i["profile"]["rows"] for i in items)
+    kinds: Counter[str] = Counter()
+    for i in items:
+        kinds.update(f["kind"] for f in i["profile"]["flags"])
+    states = Counter((i["run"]["decision"] if i["run"] else "none") for i in items)
+
+    by_name: dict[str, list[tuple[str, dict[str, Any]]]] = {}
+    for i in items:
+        for c in i["profile"]["columns"]:
+            by_name.setdefault(_norm(c["name"]), []).append((i["dataset"]["filename"], c))
+    shared, conflicts = [], []
+    for group in by_name.values():
+        files = {f for f, _ in group}
+        if len(files) < 2:
+            continue
+        types = {c["type"] for _, c in group}
+        row = {"column": group[0][1]["name"], "datasets": sorted(files), "types": sorted(types),
+               "key_in": sorted(f for f, c in group if c.get("is_key_candidate"))}
+        (conflicts if len(types) > 1 else shared).append(row)
+
+    hints = [{"dataset": i["dataset"]["filename"], **h} for i in items for h in i["profile"].get("privacy_hints", [])]
+    economies = [(i, dataset_economy(i["run"], i["baselines"])) for i in items if i["run"]]
+    decided = [(i, e) for i, e in economies if e and e["saving_hours"] is not None]
+    reported = [e for _, e in decided if e["manual_is_reported"]]
+    return {
+        "datasets": len(items), "rows": total_rows, "columns": sum(len(i["profile"]["columns"]) for i in items),
+        "bytes": sum(i["dataset"]["size_bytes"] for i in items), "alerts_total": sum(kinds.values()),
+        "alert_kinds": kinds.most_common(), "states": dict(states), "shared": shared, "conflicts": conflicts,
+        "hints": hints, "runs_total": sum(len(i["runs"]) for i in items),
+        "cost_total": sum((r.get("cost_usd") or 0) for i in items for r in i["runs"]),
+        "decided": len(decided), "with_baseline": len(reported),
+        "saving_hours": sum(e["saving_hours"] for _, e in decided),
+        "saving_hours_reported": sum(e["saving_hours"] for e in reported),
+        "saving_usd": sum(e["saving_usd"] for _, e in decided),
+        "review_minutes": sum((e["review_seconds"] or 0) for _, e in decided) / 60,
+        "ai_seconds": sum(e["ai_seconds"] for _, e in economies if e),
     }

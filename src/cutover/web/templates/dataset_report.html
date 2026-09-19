@@ -209,12 +209,16 @@
   <table class="r">
     <thead><tr><th>Parâmetro</th><th class="num">Valor</th><th>Origem</th></tr></thead>
     <tbody>
-      <tr><td class="k">Horas de um analista para o mesmo levantamento, à mão</td><td class="num">{{ e.manual_hours | br_dec(1) }} h</td><td>Premissa ilustrativa</td></tr>
+      <tr><td class="k">Horas de um analista para o mesmo levantamento, à mão</td><td class="num">{{ e.manual_hours | br_dec(2) }} h</td><td>{% if e.manual_is_reported %}Informado pelo analista ({{ e.baseline_count }} {{ 'registro' if e.baseline_count == 1 else 'registros, mediana' }}){% else %}Premissa ilustrativa{% endif %}</td></tr>
       <tr><td class="k">Custo horário (carga total)</td><td class="num">US$ {{ e.rate_usd | br_dec(0) }}</td><td>Premissa ilustrativa</td></tr>
-      <tr><td class="k">Horas devolvidas ao time neste dataset</td><td class="num">{% if e.saving_hours is not none %}{{ e.saving_hours | br_dec(2) }} h{% else %}depende da decisão{% endif %}</td><td>Premissa menos tempo medido</td></tr>
-      <tr><td class="k">Economia estimada (descontado o custo de IA)</td><td class="num">{% if e.saving_usd is not none %}US$ {{ e.saving_usd | br_dec(0) }}{% else %}—{% endif %}</td><td>Premissa</td></tr>
+      <tr><td class="k">Horas devolvidas ao time neste dataset</td><td class="num">{% if e.saving_hours is not none %}{{ e.saving_hours | br_dec(2) }} h{% else %}depende da decisão{% endif %}</td><td>{{ 'Baseline informado' if e.manual_is_reported else 'Premissa' }} menos tempo medido</td></tr>
+      <tr><td class="k">Economia estimada (descontado o custo de IA)</td><td class="num">{% if e.saving_usd is not none %}US$ {{ e.saving_usd | br_dec(0) }}{% else %}—{% endif %}</td><td>{{ 'Baseline informado; custo horário é premissa' if e.manual_is_reported else 'Premissa' }}</td></tr>
     </tbody></table>
-  <div class="flag"><span class="flag-k">Premissas não verificadas</span><p>As horas de um analista e o custo horário são <code>premissas ilustrativas</code>: nenhum tempo humano foi cronometrado. Use o simulador do relatório executivo (<a href="/relatorio#roi">/relatorio</a>) com os seus números.</p></div>
+  {% if e.manual_is_reported %}
+  <div class="flag"><span class="flag-k">Baseline informado, não verificado</span><p>As horas à mão foram <code>informadas pelo analista</code> (cronômetro do app ou minutos digitados); nenhum instrumento independente as mede. O custo horário continua sendo <code>premissa ilustrativa</code>.</p></div>
+  {% else %}
+  <div class="flag"><span class="flag-k">Premissas não verificadas</span><p>As horas de um analista e o custo horário são <code>premissas ilustrativas</code>: nenhum tempo humano foi informado para este dataset. Registre o baseline na tela do dataset ou use o simulador do relatório executivo (<a href="/relatorio#roi">/relatorio</a>).</p></div>
+  {% endif %}
   {% else %}
   <p>Sem execução concluída, não há tempo medido para este dataset.</p>
   {% endif %}

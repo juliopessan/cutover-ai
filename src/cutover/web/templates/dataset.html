@@ -56,6 +56,23 @@
       {% endfor %}</tbody>
     </table></div>
   </section>
+  <section class="section" id="baseline">
+    <p class="eyebrow">Baseline manual</p>
+    <p class="note" style="max-width: 68ch">Quanto tempo um analista levaria para fazer este levantamento à mão? Cronometre ou informe o tempo. Ele substitui a premissa de horas no relatório. É um valor <b>informado por você</b>, não medido pelo sistema.</p>
+    <div class="baseline" data-url="/app/datasets/{{ dataset.id }}/baseline">
+      <div class="clock"><b id="bl-clock">00:00:00</b>
+        <button class="btn small" type="button" id="bl-start">Iniciar</button>
+        <button class="btn small ghost" type="button" id="bl-stop" disabled>Parar e salvar</button></div>
+      <div class="manual"><label>Ou informe em minutos<input type="number" id="bl-minutes" min="1" max="1440" step="1" placeholder="ex.: 90"></label>
+        <button class="btn small ghost" type="button" id="bl-save">Salvar minutos</button></div>
+      <p class="note" id="bl-msg" role="status"></p>
+    </div>
+    {% if baselines %}
+    <div class="tbl-wrap"><table><thead><tr><th>Registrado em (UTC)</th><th>Método</th><th class="num">Tempo</th></tr></thead>
+      <tbody>{% for b in baselines %}<tr><td class="mono">{{ b.created_at }}</td><td>{{ 'Cronômetro' if b.method == 'stopwatch' else 'Informado em minutos' }}</td><td class="num">{{ (b.seconds / 60) | br_dec(1) }} min</td></tr>{% endfor %}</tbody></table></div>
+    {% endif %}
+  </section>
+  <script src="/static/baseline.js" defer></script>
   <div class="cta-row" style="padding-bottom: 56px"><a class="btn" href="/app/datasets/{{ dataset.id }}/mapping">{{ 'Ver ou refazer o mapeamento' if run else 'Sugerir mapeamento com IA' }}</a><a class="btn ghost" href="/app/datasets/{{ dataset.id }}/report">Gerar relatório</a><a class="btn ghost" href="/app">← Voltar aos datasets</a></div>
 </main>
 {% endblock %}

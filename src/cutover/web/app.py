@@ -24,7 +24,7 @@ from cutover.web import auth
 from cutover.web.db import Database
 from cutover.web import runs as run_store
 from cutover.web.profiling import PROFILE_VERSION, ProfileError, profile_csv
-from cutover.web.report import build_context, dataset_analysis
+from cutover.web.report import build_context, consolidated_analysis, dataset_analysis
 from cutover.web.live import SESSION_BUDGET_USD, run_mapping_stream
 
 HERE = Path(__file__).parent
@@ -123,6 +123,48 @@ def create_app(
             profile = json.loads(row["profile_json"])
             result.append({**dict(row), "rows": profile["rows"], "flags": len(profile["flags"])})
         return result
+
+    def baselines_for(dataset_id: int, user_id: int) -> list[dict[str, Any]]:
+        with db.connect() as conn:
+            rows = conn.execute("SELECT * FROM manual_baselines WHERE dataset_id = ? AND user_id = ? ORDER BY id DESC",
+                                (dataset_id, user_id)).fetchall()
+        return [dict(r) for r in rows]
+
+    @app.post("/app/datasets/{dataset_id}/baseline")
+    async def add_baseline(request: Request, dataset_id: int, seconds: int = Form(...), method: str = Form("manual"),
+                           note: str = Form("")) -> Response:
+        """Record how long the analyst took to do this assessment by hand. Self-reported, and labelled as such."""
+        user = current_user(request)
+        if not user:
+            return JSONResponse({"ok": False, "message": "Faça login."}, status_code=401)
+        with db.connect() as conn:
+            owns = conn.execute("SELECT 1 FROM datasets WHERE id = ? AND user_id = ?", (dataset_id, user["id"])).fetchone()
+        if not owns:
+            return JSONResponse({"ok": False, "message": "Dataset não encontrado."}, status_code=404)
+        if not 30 <= seconds <= 24 * 3600:
+            return JSONResponse({"ok": False, "message": "Informe entre 30 segundos e 24 horas."}, status_code=400)
+        with db.connect() as conn:
+            conn.execute("INSERT INTO manual_baselines(dataset_id, user_id, seconds, method, note) VALUES (?,?,?,?,?)",
+                         (dataset_id, user["id"], seconds, "stopwatch" if method == "stopwatch" else "manual", note[:300]))
+        return JSONResponse({"ok": True, "message": "Baseline registrado."})
+
+    @app.get("/app/report")
+    def consolidated_report(request: Request) -> Response:
+        user = current_user(request)
+        if not user:
+            return RedirectResponse("/login", status_code=303)
+        with db.connect() as conn:
+            rows = conn.execute("SELECT * FROM datasets WHERE user_id = ? ORDER BY id", (user["id"],)).fetchall()
+        items = [{
+            "dataset": dict(r), "profile": json.loads(r["profile_json"]),
+            "run": run_store.best_run(db, dataset_id=r["id"], user_id=user["id"]),
+            "runs": run_store.list_runs(db, dataset_id=r["id"], user_id=user["id"]),
+            "baselines": baselines_for(r["id"], user["id"]),
+        } for r in rows]
+        return templates.TemplateResponse(request, "consolidated_report.html", {
+            "items": items, "c": consolidated_analysis(items) if items else None, "user": user, "targets": TARGETS,
+            "generated_at": datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC"),
+        })
 
     @app.get("/relatorio")
     def report(request: Request) -> Response:
@@ -267,6 +309,7 @@ def create_app(
         profile = json.loads(row["profile_json"])
         return render(request, "dataset.html", dataset=dict(row), profile=profile,
                       run=run_store.best_run(db, dataset_id=dataset_id, user_id=user["id"]),
+                      baselines=baselines_for(dataset_id, user["id"]),
                       target_label=TARGETS.get(row["target"], row["target"]))
 
     # ---- live governed run -----------------------------------------------------
@@ -391,7 +434,7 @@ def create_app(
         history = run_store.list_runs(db, dataset_id=dataset_id, user_id=user["id"])
         return templates.TemplateResponse(request, "dataset_report.html", {
             "dataset": dict(row), "profile": profile, "run": run, "history": history,
-            "analysis": dataset_analysis(profile, run, history),
+            "analysis": dataset_analysis(profile, run, history, baselines_for(dataset_id, user["id"])),
             "target_label": TARGETS.get(row["target"], row["target"]), "user": user,
             "runs_total": len(history),
             "generated_at": datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC"),
