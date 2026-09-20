@@ -151,11 +151,13 @@ def column_note(c: dict[str, Any]) -> str:
         notes.append("candidata a chave (valores únicos)")
     kind = c.get("type")
     if kind == "decimal" and c.get("max_scale") is not None:
-        notes.append(f"decimal({(c.get('max_int_digits') or 0) + c['max_scale']},{c['max_scale']}) é o mínimo observado")
+        notes.append(f"decimal({(c.get('max_int_digits') or 0) + c['max_scale']},{c['max_scale']}) é o mínimo observado"
+                     + ("; vírgula decimal e ponto de milhar" if c.get("number_style") == "br" else ""))
     elif kind == "integer" and c.get("min") is not None:
         notes.append(f"faixa {c['min']} a {c['max']}")
     elif kind == "date" and c.get("min"):
-        notes.append(f"de {c['min']} a {c['max']}")
+        extra = f"; formato {c['date_format']}" if c.get("date_format") else ""
+        notes.append(f"de {c['min']} a {c['max']}{extra}" + (" (ambíguo: dia/mês assumido)" if c.get("date_ambiguous") else ""))
     elif kind == "text" and c.get("max_len"):
         notes.append(f"até {c['max_len']} caracteres")
     return "; ".join(notes)

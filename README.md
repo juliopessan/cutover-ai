@@ -44,7 +44,7 @@ make install
 make serve            # http://127.0.0.1:8000
 ```
 
-Crie uma conta em `/signup`, envie um CSV em UTF-8 (até 25 MB) e leia o perfil. Ou use Docker: `docker compose up --build`.
+Crie uma conta em `/signup`, envie um CSV (UTF-8 ou Windows-1252, até 25 MB; datas `dd/mm/aaaa` e vírgula decimal são reconhecidas) e leia o perfil. Ou use Docker: `docker compose up --build`.
 
 A execução ao vivo gasta a sua chave da DeepSeek, então limita cada usuário a `CUTOVER_LIVE_MAX_RUNS_PER_DAY` execuções por dia (padrão 10), com teto de US$ 0,05 por execução.
 

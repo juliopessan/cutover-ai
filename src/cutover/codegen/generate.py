@@ -106,6 +106,24 @@ def tsql_type(col: ColumnPlan) -> str:
             "timestamp": "DATETIME2(6)"}[col.kind]
 
 
+SPARK_ENCODINGS = {"utf-8": "UTF-8", "windows-1252": "windows-1252", "latin-1": "ISO-8859-1"}
+NUMERIC_TARGETS = ("int", "bigint", "double", "decimal")
+
+
+def column_formats(cols: list[ColumnPlan]) -> dict[str, dict[str, str]]:
+    """The source formats the profile MEASURED, keyed by source column, for the load to parse with."""
+    formats: dict[str, dict[str, str]] = {}
+    for c in cols:
+        entry: dict[str, str] = {}
+        if c.kind in ("date", "timestamp") and c.profile.get("date_format"):
+            entry["date"] = str(c.profile["date_format"])
+        if c.kind in NUMERIC_TARGETS and c.profile.get("number_style") == "br":
+            entry["number"] = "br"
+        if entry:
+            formats[c.source] = entry
+    return formats
+
+
 # ---- helpers -----------------------------------------------------------------------------------
 
 def _sql_str(value: str, target: str = "microsoft_fabric") -> str:
@@ -211,12 +229,15 @@ def notebook_cells(target: str, cols: list[ColumnPlan], p: Params, filename: str
 SOURCE_PATH = {json.dumps(p.source_path)}
 TARGET_TABLE = {table_expr}
 DELIMITER = {json.dumps(profile.get("delimiter") or ",")}
+ENCODING = {json.dumps(SPARK_ENCODINGS.get(profile.get("encoding", "utf-8"), "UTF-8"))}   # codificação medida no arquivo de origem
+# Formatos medidos na origem: data com o padrão do Spark; "br" = ponto de milhar e vírgula decimal (1.234,56).
+FORMATS = {json.dumps(column_formats(cols), ensure_ascii=False)}
 DROP_EXACT_DUPLICATES = {p.drop_duplicates}   # o perfil mediu {profile["duplicate_rows"]} linhas duplicadas
 EXPECTED_ROWS = {profile["rows"] - (profile["duplicate_rows"] if p.drop_duplicates else 0)}   # medido no arquivo de origem''',
         _py_columns(cols),
         '''# 1) Leitura: linhas com número de campos diferente do cabeçalho são descartadas, como no perfil.
 raw = (spark.read.format("csv")
-       .option("header", True).option("delimiter", DELIMITER).option("encoding", "UTF-8")
+       .option("header", True).option("delimiter", DELIMITER).option("encoding", ENCODING)
        .option("mode", "DROPMALFORMED").option("inferSchema", False)
        .load(SOURCE_PATH))''',
         '''# 2) Transformação: renomeia, apara espaços (o perfil também apara) e converte para o tipo aprovado.
@@ -224,13 +245,25 @@ def bq(name):
     return "`" + name.replace("`", "``") + "`"
 
 trimmed = {src: F.trim(F.col(bq(src))) for src, _, _ in COLUMNS}
-converted = [trimmed[src].cast(kind).alias(dst) for src, dst, kind in COLUMNS]
+
+def convert(src, kind):
+    column, fmt = trimmed[src], FORMATS.get(src, {})
+    if fmt.get("number") == "br" and kind != "STRING":
+        # 1.234,56 vira 1234.56: tira os pontos de milhar e troca a vírgula decimal por ponto.
+        column = F.regexp_replace(F.regexp_replace(column, r"\\.", ""), ",", ".")
+    if kind == "DATE" and "date" in fmt:
+        return F.to_date(column, fmt["date"])
+    if kind == "TIMESTAMP" and "date" in fmt:
+        return F.to_timestamp(column, fmt["date"])
+    return column.cast(kind)
+
+converted = [convert(src, kind).alias(dst) for src, dst, kind in COLUMNS]
 out = raw.select(*converted)
 if DROP_EXACT_DUPLICATES:
     out = out.dropDuplicates()''',
         '''# 3) Segurança da conversão: um valor que existia na origem e virou nulo foi PERDIDO na conversão.
 lost = raw.select(*[
-    F.sum(F.when((trimmed[src] != "") & trimmed[src].cast(kind).isNull(), 1).otherwise(0)).alias(dst)
+    F.sum(F.when((trimmed[src] != "") & convert(src, kind).isNull(), 1).otherwise(0)).alias(dst)
     for src, dst, kind in COLUMNS
 ]).first().asDict()
 lost = {k: v for k, v in lost.items() if v}
@@ -350,6 +383,7 @@ def build_bundle(*, target: str, dataset: dict[str, Any], profile: dict[str, Any
         # The approval covers this exact mapping; the hash lets anyone check that the code was built from it.
         "mapeamento_sha256": _sha(json.dumps(run["mappings"], sort_keys=True, ensure_ascii=False)),
         "mapeamento_editado": bool(run.get("edited")), "edicoes": len(run.get("edit_log") or []),
+        "codificacao_origem": profile.get("encoding", "utf-8"), "formatos_medidos": column_formats(cols),
         "parametros": {"tabela": params.table, "schema": params.schema, "catalogo": params.catalog,
                        "caminho_origem": params.source_path, "remover_duplicatas": params.drop_duplicates},
         "arquivos": {name: _sha(text) for name, text in files.items()},

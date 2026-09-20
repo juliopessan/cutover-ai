@@ -141,7 +141,8 @@ provavelmente é um deles.
 | O Fabric não aceita o `.ipynb` gerado (metadados mínimos) | Erro ao importar, ou o notebook abre sem kernel | `render_ipynb` em `generate.py` |
 | `spark.catalog.tableExists` com nome de três partes no Databricks | `ParseException` ou `AnalysisException` na célula 5 | Célula de escrita em `notebook_cells` |
 | `DROPMALFORMED` descarta um número diferente de linhas que o perfil | `linhas carregáveis` diferente do esperado em arquivo com aspas ou quebras de linha internas | Leitura em `notebook_cells`; comparar com `rows_discarded` do perfil |
-| Datas fora do formato ISO viram nulo | A conversão perde valores (célula 3) e aborta | Adicionar formato explícito de origem |
+| `to_date` com padrão explícito falha ou vira nulo (modo ANSI do Spark, `spark.sql.legacy.timeParserPolicy`) | A conversão perde valores (célula 3) e aborta, ou o Spark levanta erro de parse | Conferir `FORMATS` e a política do parser; o padrão vem do perfil medido (`formatos_medidos` no manifesto) |
+| Arquivo em Windows-1252 lido como UTF-8 | Acentos quebrados (`Jo?o`) na tabela carregada | `ENCODING` no notebook e `codificacao_origem` no manifesto |
 | `LEN` no T-SQL diverge de caracteres | `DIVERGE` só em `tamanho_max` | `reconciliation` em `generate.py` |
 | Diferença de comparação numérica (`FLOAT` vs `DECIMAL`) | `DIVERGE` em `min` ou `max` de coluna decimal | Tipos em `spark_type` e `tsql_type` |
 | O caminho `Files/...` precisa ser `abfss://` ou relativo ao Lakehouse anexado | Erro de caminho na leitura | Parâmetro `SOURCE_PATH` |

@@ -202,7 +202,7 @@ def test_report_reprofiles_datasets_stored_with_an_older_profile(tmp_path):
     conn.close()
     assert "Este perfil é de uma versão anterior" not in client.get(location + "/report").text
     stored = json.loads(sqlite3.connect(db_path).execute("SELECT profile_json FROM datasets").fetchone()[0])
-    assert stored["profile_version"] == 2 and "distinct" in stored["columns"][0]
+    assert stored["profile_version"] == 3 and "distinct" in stored["columns"][0]
 
 
 def upload(client, name, csv_text, target="databricks"):

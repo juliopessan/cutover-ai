@@ -112,12 +112,15 @@ def test_clean_profile_renders_no_flags(tmp_path):
     assert profile_csv(path).flags == []
 
 
-def test_profile_rejects_empty_and_non_utf8(tmp_path):
+def test_profile_rejects_empty_binary_and_utf16_files(tmp_path):
     path = tmp_path / "d.csv"
     path.write_bytes(b"   ")
     with pytest.raises(ProfileError):
         profile_csv(path)
-    path.write_bytes("id,nome\n1,João\n".encode("latin-1"))
+    path.write_bytes("id,nome\n1,Ana\n".encode("utf-16"))
+    with pytest.raises(ProfileError, match="UTF-16"):
+        profile_csv(path)
+    path.write_bytes(b"a,b\n1,\x00\x01\n")
     with pytest.raises(ProfileError):
         profile_csv(path)
 
@@ -198,8 +201,9 @@ def test_type_fits_data_catches_unsafe_types_only_when_profile_is_given():
                 "city": {"target": "city", "type": "int"}, "d": {"target": "d", "type": "date"}}
     assert len(check_mapping(list(mappings), mappings)) == 5  # legacy call keeps the five checks
     fit = {c["name"]: c for c in check_mapping(list(mappings), mappings, profile)}["type_fits_data"]
-    assert fit["status"] == "failed" and len(fit["offenders"]) == 3  # id overflows, price loses decimals, city is text
-    assert type_conflict(profile["d"], "date") is None  # text to date is allowed (needs a source format, not unsafe)
+    assert fit["status"] == "failed" and len(fit["offenders"]) == 4  # id overflows, price loses decimals, city and d are text
+    # The profile now recognises real dates, so a text column that is not one cannot be loaded as a date.
+    assert "formato de data" in type_conflict(profile["d"], "date")
     assert type_conflict(profile["id"], "bigint") is None
 
 

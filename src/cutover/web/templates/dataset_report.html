@@ -83,7 +83,7 @@
       <tr><td class="k">Células vazias</td><td class="num">{{ profile.empty_cells | br_int }}</td></tr>
       <tr><td class="k">Linhas duplicadas</td><td class="num">{{ profile.duplicate_rows | br_int }}</td></tr>
       <tr><td class="k">Delimitador</td><td class="num"><code>{{ profile.delimiter | default(',') }}</code></td></tr>
-      <tr><td class="k">Codificação</td><td class="num">UTF-8</td></tr>
+      <tr><td class="k">Codificação</td><td class="num">{{ profile.encoding | default('utf-8') | upper }}</td></tr>
       <tr><td class="k">Tamanho do arquivo</td><td class="num">{{ dataset.size_bytes | br_int }} bytes</td></tr>
       <tr><td class="k">Colunas candidatas a chave</td><td class="num">{{ analysis.key_columns | join(', ') if analysis.key_columns else 'nenhuma' }}</td></tr>
     </tbody></table></div>

@@ -17,26 +17,34 @@ FIXTURES = Path(__file__).parent / "fixtures" / "cloudera_covid"
 # (rows, column name -> inferred type)
 EXPECTED = {
     "raw_covid__cases.csv": (510, {
-        "date_rep": "text", "day": "integer", "month": "integer", "year": "integer",
+        "date_rep": "date", "day": "integer", "month": "integer", "year": "integer",
         "cases": "integer", "deaths": "integer", "geo_id": "text"}),
     "ref__country_codes.csv": (255, {
         "country": "text", "alpha_2code": "text", "alpha_3code": "text", "numeric_code": "integer",
         "latitude_avg": "decimal", "longitude_avg": "decimal"}),
     "ref__populations.csv": (266, {"country_code": "text", "population": "integer"}),
     "raw_covid__vaccines.csv": (3740, {
-        "year_week_iso": "text", "reporting_country": "text", "num_doses_recv": "integer",
+        "year_week_iso": "date", "reporting_country": "text", "num_doses_recv": "integer",
         "num_doses_exported": "integer", "first_dose": "integer", "first_dose_refused": "integer",
         "second_dose": "integer", "unknown_dose": "integer", "target_group": "text", "vaccine": "text"}),
 }
 
 
+# These two files contain only the dates 01/01/2022 and 02/01/2022: they read as 1 and 2 January or as
+# 1 January and 1 February. The profiler cannot know, and says so; every other seed is clean.
+AMBIGUOUS_DATES = {"raw_covid__cases.csv", "raw_covid__vaccines.csv"}
+
+
 @pytest.mark.parametrize("name", EXPECTED)
-def test_seed_profiles_match_known_shape_and_raise_no_flags(name):
+def test_seed_profiles_match_known_shape_and_raise_only_the_known_flags(name):
     rows, types = EXPECTED[name]
     profile = profile_csv(FIXTURES / name)
     assert profile.rows == rows
     assert {c["name"]: c["type"] for c in profile.columns} == types
-    assert profile.flags == []
+    assert [f.kind for f in profile.flags] == (["ambiguous_dates"] if name in AMBIGUOUS_DATES else [])
+    if name in AMBIGUOUS_DATES:
+        date = next(c for c in profile.columns if c["type"] == "date")
+        assert date["date_format"] == "dd/MM/yyyy" and date["date_ambiguous"] and (date["min"], date["max"]) == ("2022-01-01", "2022-01-02")
     assert profile.duplicate_rows == 0 and profile.empty_cells == 0
 
 

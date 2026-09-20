@@ -51,8 +51,10 @@ def type_conflict(profile: Mapping[str, Any], suggested: str | None) -> str | No
             return None
     if suggested == "boolean" and kind != "boolean":
         return f"a coluna é {kind}, não booleana"
-    if suggested in ("date", "timestamp") and kind in ("integer", "decimal", "boolean", "mixed"):
-        return f"a coluna é {kind}, não uma data"
+    if suggested in ("date", "timestamp") and kind != "date":
+        return f"a coluna é {kind}, não tem um formato de data reconhecido"
+    if suggested == "date" and profile.get("has_time"):
+        return "os valores têm hora, que se perderia em date (use timestamp)"
     return None
 
 
@@ -160,7 +162,9 @@ def infer_type(profile: Mapping[str, Any]) -> str:
         except ValueError:
             wide = True
         return "bigint" if wide else "int"
-    return {"decimal": "decimal", "date": "date", "boolean": "boolean"}.get(str(kind), "string")
+    if kind == "date":
+        return "timestamp" if profile.get("has_time") else "date"
+    return {"decimal": "decimal", "boolean": "boolean"}.get(str(kind), "string")
 
 
 def safe_type(profile: Mapping[str, Any], suggested: str) -> str:
@@ -170,6 +174,8 @@ def safe_type(profile: Mapping[str, Any], suggested: str) -> str:
         return "bigint"
     if suggested in ("int", "bigint", "double") and kind == "decimal":
         return "decimal"
+    if suggested in ("date", "timestamp") and kind == "date":
+        return "timestamp" if profile.get("has_time") else "date"
     return "string" if suggested in NUMERIC_TARGETS | {"boolean", "date", "timestamp"} else infer_type(profile)
 
 

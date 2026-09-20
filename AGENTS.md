@@ -55,6 +55,7 @@ docs/                 notas e o relatório em PDF; docs/reports/
 - Editar **sempre** cancela a aprovação (o estado volta a `pending`), guarda a sugestão original e registra quem, quando e por quê. Não crie um caminho que edite sem isso.
 - O código gerado grava o hash do mapeamento aprovado e se ele foi editado no `manifest.json`.
 - Trabalho pesado de CPU (perfil de arquivo) roda em `asyncio.to_thread`; senão um upload grande congela o app inteiro (medido: `/healthz` de 2 ms para 3,6 s).
+- Formatos brasileiros (`web/profiling.py`): o perfil lê os dois sentidos de datas e números e decide no fim da coluna. Se os dados servem aos dois, é `ambiguous_dates` (sinalizado, padrão `dd/MM/yyyy`), nunca um palpite silencioso. O código gerado usa o formato **medido** (`FORMATS`, `ENCODING`) e o teste `tests/test_brazilian_formats.py` reconcilia um CSV BR em motor independente; mantenha-o.
 - CSVs que o usuário baixa passam por `csv_safe`: uma célula começando com `=`, `+`, `-` ou `@` é uma fórmula para o Excel.
 
 **Geração de código** (`cutover/codegen/`)
