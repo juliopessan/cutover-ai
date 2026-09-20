@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-19 15:46 UTC",
-  "git_commit": "c1c48be",
+  "generated_at": "2026-09-20 17:48 UTC",
+  "git_commit": "391ad79",
   "git_dirty": false,
   "environment": {
     "python": "3.14.6",
@@ -18,24 +18,24 @@
       "bytes": 17770,
       "rows": 510,
       "columns": 7,
-      "alerts": 0,
+      "alerts": 1,
       "sha256_matches_independent": true,
-      "profile_ms_median": 7.15,
-      "profile_ms_p95": 7.26,
-      "rows_per_second": 71368,
-      "upload_to_page_ms_median": 12.6
+      "profile_ms_median": 11.89,
+      "profile_ms_p95": 12.16,
+      "rows_per_second": 42898,
+      "upload_to_page_ms_median": 18.0
     },
     {
       "file": "raw_covid__vaccines.csv",
       "bytes": 195758,
       "rows": 3740,
       "columns": 10,
-      "alerts": 0,
+      "alerts": 1,
       "sha256_matches_independent": true,
-      "profile_ms_median": 54.6,
-      "profile_ms_p95": 55.28,
-      "rows_per_second": 68497,
-      "upload_to_page_ms_median": 61.6
+      "profile_ms_median": 98.83,
+      "profile_ms_p95": 99.77,
+      "rows_per_second": 37842,
+      "upload_to_page_ms_median": 106.3
     },
     {
       "file": "ref__country_codes.csv",
@@ -44,10 +44,10 @@
       "columns": 6,
       "alerts": 0,
       "sha256_matches_independent": true,
-      "profile_ms_median": 3.36,
-      "profile_ms_p95": 3.57,
-      "rows_per_second": 75848,
-      "upload_to_page_ms_median": 8.8
+      "profile_ms_median": 4.51,
+      "profile_ms_p95": 4.73,
+      "rows_per_second": 56489,
+      "upload_to_page_ms_median": 9.9
     },
     {
       "file": "ref__populations.csv",
@@ -56,10 +56,10 @@
       "columns": 2,
       "alerts": 0,
       "sha256_matches_independent": true,
-      "profile_ms_median": 1.58,
-      "profile_ms_p95": 1.69,
-      "rows_per_second": 168648,
-      "upload_to_page_ms_median": 6.3
+      "profile_ms_median": 1.97,
+      "profile_ms_p95": 2.24,
+      "rows_per_second": 134745,
+      "upload_to_page_ms_median": 7.3
     }
   ],
   "totals": {
@@ -67,13 +67,14 @@
     "rows": 4771,
     "bytes": 225203,
     "sha256_confirmed_on_page": "4/4",
-    "false_alarms_on_clean_files": 0
+    "false_alarms_on_clean_files": 2
   },
   "detection": {
     "defects_injected": 6,
     "defects_detected": 6,
     "missed": [],
     "unexpected_alerts": [
+      "ambiguous_dates",
       "identical_columns"
     ]
   }
