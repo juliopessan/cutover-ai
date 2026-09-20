@@ -159,7 +159,7 @@
     <tbody>{% for d in profile.datasets %}
       <tr><td class="k">{{ d.file }}</td><td class="num">{{ d.rows | br_int }}</td><td class="num">{{ d.columns }}</td><td class="num">{{ d.profile_ms_median | br_dec(1) }}</td><td class="num">{{ d.upload_to_page_ms_median | br_dec(1) }}</td></tr>
     {% endfor %}</tbody></table></div>
-  <p>Medianas de {{ profile.method.profile_runs_per_file }} execuções do perfilador e {{ profile.method.upload_runs_per_file }} uploads contra um servidor real em localhost. {{ profile.detection.defects_detected }} de {{ profile.detection.defects_injected }} defeitos injetados de propósito foram detectados, sem alertas falsos em arquivos limpos.</p>
+  <p>Medianas de {{ profile.method.profile_runs_per_file }} execuções do perfilador e {{ profile.method.upload_runs_per_file }} uploads contra um servidor real em localhost. {{ profile.detection.defects_detected }} de {{ profile.detection.defects_injected }} defeitos injetados de propósito foram detectados. Os arquivos limpos geraram {{ profile.totals.false_alarms_on_clean_files }} alerta(s), ambos de data ambígua (dia e mês intercambiáveis nos valores), que são achados reais e não erros.</p>
   {% endif %}
   <hr>
   <h4>Handoff</h4>
