@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import statistics
 from pathlib import Path
 from typing import Any
@@ -98,6 +99,24 @@ def check_failures(llm: dict[str, Any]) -> list[dict[str, Any]]:
                                                               "example": (offenders or [""])[0]})
             entry["times"] += 1
     return sorted(found.values(), key=lambda e: (-e["times"], e["dataset"]))
+
+
+def landing_finding(llm: dict[str, Any] | None) -> dict[str, Any] | None:
+    """The concrete case the landing opens with: a type the model suggested that the measured data does not fit.
+
+    Read from the committed benchmark, never hard-coded, so the page can only show what a run actually found.
+    """
+    from cutover.plugins.mapping import INT32_MAX
+
+    if not llm:
+        return None
+    for failure in check_failures(llm):
+        found = re.match(r"(\w+): (\w+), valores até (\d+) não cabem", failure["example"])
+        if failure["check"] == "type_fits_data" and found:
+            return {"dataset": failure["dataset"], "column": found.group(1), "suggested": found.group(2).upper(),
+                    "max": int(found.group(3)), "limit": INT32_MAX, "times": failure["times"],
+                    "reps": llm["method"]["repetitions"]}
+    return None
 
 
 def build_context() -> dict[str, Any]:

@@ -8,7 +8,7 @@
 
 O Cutover é migração de dados governada para Microsoft Fabric e Databricks: o que pode ser medido é calculado, toda chamada de IA tem orçamento antes de custar um token e o que não pode ser verificado é sinalizado.
 
-<p align="center"><img src="docs/assets/landing.png" alt="Landing page do Cutover: a chamada 'Cada número da sua migração é medido, não afirmado' ao lado do painel do portão de custo, lido do dispatch.yaml" width="860"></p>
+<p align="center"><img src="docs/assets/landing.png" alt="Landing page do Cutover: a chamada 'Meça o agora. Aprove o depois.' ao lado de um achado real do benchmark, em que o máximo medido de uma coluna estoura o limite de INT sugerido pelo modelo" width="860"></p>
 
 ## Por que isto existe
 
@@ -31,7 +31,7 @@ O Cutover está em alfa. Abaixo, o que já dá para usar e o que ainda está sen
 | Chamadas de IA governadas | `GovernedAgent` e `MappingSuggestionAgent` passam toda chamada pelo gateway do Tollgate; as sugestões saem com `requires_approval` | Disponível (SDK) |
 | Mapeamento ao vivo | No app, “Sugerir mapeamento com IA” roda uma chamada governada e mostra cada etapa em tempo real: score, nível, portão, chamada, tokens, custo e verificações determinísticas. Só nomes e tipos de colunas vão ao modelo | Disponível (web) |
 | Aprovação e relatório | Cada execução é salva; uma pessoa aprova ou rejeita a sugestão (a aprovação só é permitida se todas as verificações passaram), baixa o mapeamento em CSV e gera o relatório AS-IS do dataset, pronto para PDF | Disponível (web) |
-| Geração de código de migração | Depois da aprovação, gera por templates (sem IA) o DDL, o notebook de carga e o SQL de reconciliação para Databricks (Unity Catalog, notebook `.py`) e Microsoft Fabric (Lakehouse `.ipynb` e DDL de Warehouse), com os valores esperados medidos no arquivo de origem. O Cutover **nunca executa** esse código | Disponível (web); validado por sintaxe e por reconciliação em motor independente, **não executado em Databricks ou Fabric reais** |
+| Geração de código de migração | Depois da aprovação, gera por templates (sem IA) o DDL, o notebook de carga e o SQL de reconciliação para Databricks (Unity Catalog, notebook `.py`) e Microsoft Fabric (Lakehouse `.ipynb` e DDL de Warehouse), com os valores esperados medidos no arquivo de origem. O Cutover **nunca executa** esse código | Disponível (web); validado por sintaxe e por reconciliação em motor independente, **não executado em Databricks ou Fabric reais** (veja o [roteiro de validação](docs/roteiro-validacao-workspace.md)) |
 | Política de refinamento | `ArtifactBranch` decide aceitar, refinar, escalar, paralelizar ou parar, por pass rate e custo | Disponível (SDK), ainda não ligado aos agentes |
 | Relatório consolidado e baseline manual | Consolidação de todos os datasets (alertas repetidos, relações por nome de coluna, sensibilidade, custo e economia) e registro do tempo manual (cronômetro ou minutos) para a economia usar números informados | Disponível (web) |
 

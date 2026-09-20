@@ -1,53 +1,121 @@
 {% extends "base.html" %}
-{% block title %}Cutover — migração de dados governada{% endblock %}
+{% block title %}Cutover: do AS-IS ao TO-BE dos seus dados{% endblock %}
 {% block content %}
 <main>
+
+<!-- HOOK -->
 <section class="hero">
   <div class="stack">
-    <p class="eyebrow">Migração para Fabric e Databricks</p>
-    <h1 class="display">Cada número da sua migração é <span class="voice">medido,</span> não afirmado.</h1>
-    <p class="lede">O Cutover perfila seus dados, planeja a migração e coloca um portão de custo e qualidade na frente de toda chamada de IA. O que foi calculado aparece como medido; o que não pôde ser verificado aparece como alerta.</p>
+    <p class="eyebrow">Do AS-IS ao TO-BE</p>
+    <h1 class="display display-sm"><span class="ln">Meça o agora.</span> <span class="ln"><span class="voice">Aprove</span> o depois.</span></h1>
+    <p class="lede">O Cutover levanta o estado atual dos seus dados (AS-IS), propõe o destino com IA sob um portão de custo e entrega o código de migração para Databricks e Microsoft Fabric (TO-BE). Cada número é calculado; cada decisão continua com uma pessoa.</p>
     <div class="cta-row">
-      <a class="btn" href="/signup">Enviar um dataset</a>
-      <a class="btn ghost" href="#como-funciona">Ver como funciona</a>
+      <a class="btn" href="/signup">Começar pelo AS-IS</a>
+      <a class="btn ghost" href="#jornada">Ver a jornada</a>
     </div>
   </div>
 
+  {% if finding %}
+  <div class="ledger" aria-label="Um achado real do benchmark">
+    <div class="ledger-head"><span class="live">Um achado real</span><span class="meta">{{ finding.dataset }}</span></div>
+    <div class="bar-row">
+      <div class="bar-label"><span>Máximo medido em {{ finding.column }}</span><b class="sm">{{ finding.max | br_int }}</b></div>
+      <div class="bar-track"><div class="bar-fill mint" style="width: 100%"></div></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label"><span>Limite de {{ finding.suggested }}</span><b class="sm">{{ finding.limit | br_int }}</b></div>
+      <div class="bar-track"><div class="bar-fill" style="width: {{ (finding.limit / finding.max * 100) | round(1) }}%"></div></div>
+    </div>
+    <div class="figs">
+      <div class="fig"><b>{{ '%02d' % finding.times }}/{{ '%02d' % finding.reps }}</b><span>execuções barradas</span></div>
+      <div class="fig"><b>BIGINT</b><span>tipo que comporta</span></div>
+    </div>
+    <div class="measured">
+      <span class="tick" aria-hidden="true">✓</span>
+      <p><span class="k">Calculado, não opinado</span>O modelo sugeriu <code>{{ finding.suggested }}</code> para <code>{{ finding.column }}</code>. Uma verificação determinística comparou com o máximo medido no arquivo e barrou. Refaça com <code>make llm-benchmark</code>.</p>
+    </div>
+  </div>
+  {% else %}
   <div class="ledger" aria-label="Política de custo por nível">
     <div class="ledger-head"><span class="live">Portão de custo</span><span class="meta">{{ '%02d' % tiers|length }} níveis</span></div>
     {% for t in tiers %}
     <div class="bar-row">
-      <div class="bar-label"><span>{{ t.id }} · score {{ t.score_min }}–{{ t.score_max }}</span><b class="sm">{{ '{:,}'.format(t.input_token_cap).replace(',', '.') }}</b></div>
+      <div class="bar-label"><span>{{ t.id }} · score {{ t.score_min }}–{{ t.score_max }}</span><b class="sm">{{ t.input_token_cap | br_int }}</b></div>
       <div class="bar-track"><div class="bar-fill" style="width: {{ (t.input_token_cap / max_cap * 100) | round(1) }}%"></div></div>
     </div>
     {% endfor %}
-    <div class="measured">
-      <span class="tick" aria-hidden="true">✓</span>
-      <p><span class="k">Lido, não estimado</span>Tetos de entrada (tokens) lidos agora de <code>dispatch.yaml</code>. Sem score, sem chamada.</p>
-    </div>
+    <div class="measured"><span class="tick" aria-hidden="true">✓</span>
+      <p><span class="k">Lido, não estimado</span>Tetos de entrada (tokens) lidos agora de <code>dispatch.yaml</code>. Sem score, sem chamada.</p></div>
   </div>
+  {% endif %}
 </section>
 
+<!-- RE-HOOK -->
 <section class="section" id="problema">
-  <p class="eyebrow">O custo de não medir</p>
-  <h2>Migração com IA falha em silêncio: no custo, na revisão e na decisão.</h2>
-  <div class="cols">
-    <div class="col"><h3>Custo sem teto</h3><p>Chamadas de modelo sem orçamento por artefato viram fatura, não engenharia. No Cutover o limite é checado antes da chamada.</p></div>
-    <div class="col"><h3>Revisão que se aprova sozinha</h3><p>Um modelo que revisa o próprio trabalho tende a aprová-lo. Contagens, tipos e duplicatas aqui são calculados dos bytes enviados.</p></div>
-    <div class="col"><h3>Sugestão sem dono</h3><p>Mapeamentos sugeridos por IA exigem aprovação humana antes de qualquer uso. Nenhuma sugestão é aplicada sozinha.</p></div>
+  <p class="eyebrow">O problema</p>
+  <h2>Toda migração começa com as mesmas perguntas. Quase nenhuma tem resposta no kickoff.</h2>
+  <div class="qa" role="list" aria-label="A reunião de kickoff, resumida">
+    <div class="qa-row" role="listitem"><span class="q">Quantas colunas são únicas?</span><span class="a">Depende.</span></div>
+    <div class="qa-row" role="listitem"><span class="q">E se o INT não couber?</span><span class="a">A gente descobre na carga.</span></div>
+    <div class="qa-row" role="listitem"><span class="q">Quem aprovou esse mapeamento?</span><span class="a">O modelo.</span></div>
   </div>
+  <p class="note">A reunião de kickoff, resumida. A ilustração é retórica; os três achados abaixo não são.</p>
+
+  {% if finding or bench or llm %}
+  <div class="cols">
+    {% if finding %}
+    <div class="col"><h3>O tipo que estoura</h3><p>O modelo sugeriu <code>{{ finding.suggested }}</code> para <code>{{ finding.column }}</code> em {{ finding.times }} de {{ finding.reps }} execuções. O máximo medido é {{ finding.max | br_int }}, acima do limite de {{ finding.limit | br_int }}. Uma regra calculada barrou; um modelo revisando a si mesmo não teria como saber.</p></div>
+    {% endif %}
+    {% if bench %}
+    <div class="col"><h3>O defeito que passa</h3><p>{{ bench.detection.defects_detected }} de {{ bench.detection.defects_injected }} defeitos plantados de propósito foram achados no perfil: nome com espaço, coluna duplicada, tipo misturado, linha truncada, coluna quase vazia e linha duplicada.</p></div>
+    {% endif %}
+    {% if llm %}
+    <div class="col"><h3>O modelo que se aprova</h3><p>{{ llm.totals.runs_with_all_checks_passed }} de {{ llm.totals.runs }} sugestões passaram em todas as verificações. As {{ llm.totals.runs - llm.totals.runs_with_all_checks_passed }} restantes foram reprovadas por regra calculada, não por opinião.</p></div>
+    {% endif %}
+  </div>
+  {% endif %}
 </section>
 
-<section class="section" id="como-funciona">
-  <p class="eyebrow">Como funciona</p>
-  <h2>Do arquivo ao plano, com evidência em cada etapa.</h2>
+<!-- MEAT -->
+<section class="section" id="jornada">
+  <p class="eyebrow">A jornada</p>
+  <h2>Do AS-IS ao TO-BE em cinco passos, com um portão no meio.</h2>
+
+  <h3 class="lane">AS-IS · o que existe hoje</h3>
   <ol class="steps">
     <li><span class="n">01</span><div><h3>Onboarding</h3><p>Perguntas de negócio, segurança e destino. A descoberta só começa quando os requisitos estão completos.</p></div><span class="status on">Disponível (CLI)</span></li>
-    <li><span class="n">02</span><div><h3>Upload e perfilamento</h3><p>Linhas, tipos, vazios, duplicatas, hash SHA-256 e compatibilidade dos nomes de coluna com Delta.</p></div><span class="status on">Disponível</span></li>
-    <li><span class="n">03</span><div><h3>Sugestão de mapeamento com portão de custo</h3><p>Sugestões de mapeamento por IA, roteadas por nível, limitadas por orçamento e acompanhadas ao vivo, com verificações determinísticas.</p></div><span class="status on">Disponível</span></li>
-    <li><span class="n">04</span><div><h3>Aprovação e relatório AS-IS</h3><p>Aprovação humana da sugestão, download do mapeamento em CSV e relatório do dataset pronto para PDF.</p></div><span class="status on">Disponível</span></li>
-    <li><span class="n">05</span><div><h3>Código de migração</h3><p>DDL, notebook de carga e reconciliação para Databricks e Microsoft Fabric, gerados do mapeamento aprovado. O código não é executado por aqui e ainda não foi testado em um workspace real.</p></div><span class="status on">Disponível</span></li>
+    <li><span class="n">02</span><div><h3>Perfil do dataset</h3><p>Linhas, tipos, vazios, duplicatas, candidatas a chave, colunas idênticas, SHA-256 e nomes compatíveis com Delta. Nenhuma linha vai a um modelo.</p></div><span class="status on">Disponível</span></li>
   </ol>
+
+  <h3 class="lane">Portão · o que a IA pode propor</h3>
+  <ol class="steps" start="3">
+    <li><span class="n">03</span><div><h3>Sugestão de mapeamento</h3><p>Roteada por nível, com teto de tokens e de orçamento, acompanhada ao vivo{% if checks_n %} e checada por {{ checks_n }} verificações determinísticas{% endif %}.</p></div><span class="status on">Disponível</span></li>
+  </ol>
+
+  <h3 class="lane">TO-BE · o que você aprova e leva</h3>
+  <ol class="steps" start="4">
+    <li><span class="n">04</span><div><h3>Aprovação humana e relatório</h3><p>Só uma pessoa aprova, e só se as verificações passaram. Relatório do dataset e consolidado, prontos para PDF.</p></div><span class="status on">Disponível</span></li>
+    <li><span class="n">05</span><div><h3>Código de migração</h3><p>DDL, notebook de carga e SQL de reconciliação para Databricks e Microsoft Fabric, gerados do mapeamento aprovado por templates, sem IA.</p></div><span class="status on">Disponível</span></li>
+  </ol>
+  <div class="flag" style="margin-top: 24px"><span class="flag-k">Não verificado em ambiente real</span>
+    <p>O código gerado passou por checagem de sintaxe e por uma reconciliação testada contra a mesma carga em um motor independente. Ele <code>ainda não foi executado</code> em um workspace real de Databricks ou Fabric, e o Cutover nunca o executa por você.</p></div>
+</section>
+
+<section class="section" id="entrega">
+  <p class="eyebrow">A entrega</p>
+  <h2>Um pacote por destino, com a origem de cada número.</h2>
+  <div class="tbl-wrap" style="margin-top: 28px">
+    <table>
+      <thead><tr><th>Arquivo</th><th>Para que serve</th></tr></thead>
+      <tbody>
+        <tr><td class="name">01_ddl</td><td>Estrutura da tabela de destino, com a coluna de origem em cada comentário. Falha se a tabela já existir.</td></tr>
+        <tr><td class="name">02_carga</td><td>Notebook de carga. Só escreve em tabela vazia e aborta se uma conversão perder valores.</td></tr>
+        <tr><td class="name">03_reconciliacao</td><td>SQL que compara o destino com os números medidos no arquivo de origem: linhas, nulos, distintos, mínimo, máximo e tamanho.</td></tr>
+        <tr><td class="name">manifest.json</td><td>SHA-256 do arquivo de origem, quem aprovou e o hash de cada arquivo do pacote.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note" style="margin-top: 16px">Databricks recebe notebook <code>.py</code> e DDL do Unity Catalog. Fabric recebe notebook <code>.ipynb</code> do Lakehouse e DDL de Warehouse.</p>
 </section>
 
 {% if bench %}
@@ -79,13 +147,13 @@
 <section class="section" id="governanca">
   <p class="eyebrow">Governança de custo</p>
   <h2>Cada nível define o que uma chamada pode custar.</h2>
-  <p class="body" style="margin: 20px 0 32px">Um score de complexidade escolhe o nível. Payloads acima do teto são comprimidos ou bloqueados, e o resultado é registrado num livro-razão de desperdício.</p>
+  <p class="body" style="margin: 20px 0 32px">Um score de complexidade escolhe o nível. Os tetos vêm de <code>dispatch.yaml</code>. Payloads acima do teto são comprimidos ou bloqueados, e o resultado é registrado num livro-razão de desperdício.</p>
   <div class="tbl-wrap">
     <table>
       <thead><tr><th>Nível</th><th class="num">Score</th><th class="num">Entrada (tokens)</th><th class="num">Saída (tokens)</th><th>Aprovação humana</th></tr></thead>
       <tbody>
       {% for t in tiers %}
-        <tr><td class="name">{{ t.id }}</td><td class="num">{{ t.score_min }}–{{ t.score_max }}</td><td class="num">{{ '{:,}'.format(t.input_token_cap).replace(',', '.') }}</td><td class="num">{{ '{:,}'.format(t.output_token_cap).replace(',', '.') }}</td><td>{{ 'Obrigatória' if t.approval_required else 'Não' }}</td></tr>
+        <tr><td class="name">{{ t.id }}</td><td class="num">{{ t.score_min }}–{{ t.score_max }}</td><td class="num">{{ t.input_token_cap | br_int }}</td><td class="num">{{ t.output_token_cap | br_int }}</td><td>{{ 'Obrigatória' if t.approval_required else 'Não' }}</td></tr>
       {% endfor %}
       </tbody>
     </table>
@@ -96,25 +164,27 @@
   <p class="eyebrow">Destinos</p>
   <h2>Dois destinos, dois contratos independentes.</h2>
   <div class="cols two">
-    <div class="col"><h3>Microsoft Fabric</h3><p>OneLake, Lakehouse ou Warehouse, pipelines do Data Factory, Purview e restrições de capacidade.</p></div>
-    <div class="col"><h3>Databricks</h3><p>Unity Catalog, Delta Lake, Lakeflow, políticas de computação e controles de acesso.</p></div>
+    <div class="col"><h3>Microsoft Fabric</h3><p>Lakehouse (notebook) e Warehouse (DDL em T-SQL), com reconciliação no endpoint SQL.</p></div>
+    <div class="col"><h3>Databricks</h3><p>Unity Catalog e Delta Lake, com notebook de carga e reconciliação em Spark SQL.</p></div>
   </div>
 </section>
 
-<section class="section">
-  <p class="eyebrow">Comece agora</p>
-  <h2>Envie um CSV e veja o que está nele.</h2>
+<!-- CTA -->
+<section class="section" id="comece">
+  <p class="eyebrow">Comece pelo AS-IS</p>
+  <h2>Um CSV é o suficiente para ver o seu estado atual.</h2>
   <ul class="body" style="margin: 20px 0 0; padding-left: 20px">
-    <li>Um perfil calculado do arquivo: linhas, tipos, vazios e duplicatas.</li>
+    <li>Um perfil calculado do arquivo: linhas, tipos, vazios, duplicatas e chaves candidatas.</li>
     <li>Alertas que citam as colunas e as linhas exatas, quando há problema.</li>
     <li>O SHA-256 do arquivo, para você conferir por conta própria.</li>
     <li>Nada é enviado a um modelo de IA nesta etapa.</li>
   </ul>
-  <div class="cta-row" style="margin-top: 28px"><a class="btn" href="/signup">Criar conta e enviar um dataset</a><a class="btn ghost" href="/login">Entrar</a></div>
+  <p class="body" style="margin-top: 16px">Se você aprovar o mapeamento, o TO-BE sai em código logo em seguida.</p>
+  <div class="cta-row" style="margin-top: 28px"><a class="btn" href="/signup">Criar conta e enviar um dataset</a><a class="btn ghost" href="/relatorio">Ler o relatório executivo</a></div>
 </section>
 </main>
 <footer class="foot">
-  <p>Limite de segurança: o Cutover nunca executa operações destrutivas na origem. Extração, implantação e virada exigem credenciais, política e autorização humana explícitas.</p>
+  <p>Limite de segurança: o Cutover gera código, mas nunca o executa, e nunca faz operações destrutivas na origem. Extração, implantação e virada exigem credenciais, política e autorização humana explícitas.</p>
   <span class="mono"><a href="/relatorio">Relatório executivo</a> · Cutover</span>
 </footer>
 {% endblock %}

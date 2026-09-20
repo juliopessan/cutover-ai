@@ -59,8 +59,9 @@ def test_types_are_derived_from_measured_data():
     profile = profile_csv(FIXTURES / "ref__country_codes.csv").to_dict()
     cols = {c.source: c for c in plan_columns(profile, mapping(COUNTRY))}
     assert spark_type(cols["latitude_avg"]).startswith("DECIMAL(") and spark_type(cols["numeric_code"]) == "INT"
-    assert tsql_type(cols["numeric_code"]) == "INT" and tsql_type(cols["country"]) in {"VARCHAR(64)", "VARCHAR(128)", "VARCHAR(256)", "VARCHAR(32)"}
-    assert tsql_type(cols["country"]).startswith("VARCHAR(") and int(tsql_type(cols["country"])[8:-1]) >= profile["columns"][0]["max_len"]
+    assert tsql_type(cols["numeric_code"]) == "INT"
+    # UTF-8 VARCHAR counts bytes: the column must hold the longest value even if every character takes 2 bytes.
+    assert int(tsql_type(cols["country"])[8:-1]) >= 2 * profile["columns"][0]["max_len"]
 
 
 def test_unapproved_or_unsafe_mappings_are_refused():

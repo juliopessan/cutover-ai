@@ -288,3 +288,49 @@ def test_no_page_heading_reuses_the_layout_container_class(client):
     for url in ("/", "/app", "/app/datasets/1", "/app/datasets/1/mapping", "/login"):
         for heading in re.findall(r"<h[1-6][^>]*>", client.get(url).text):
             assert 'class="page"' not in heading, (url, heading)
+
+
+def _llm(example="population: int, valores até 7761620146 não cabem em int (use bigint)"):
+    return {"method": {"repetitions": 3, "datasets": 5}, "totals": {"runs": 15, "runs_with_all_checks_passed": 12},
+            "runs": [{"dataset": "ref__populations.csv", "failed_detail": {"type_fits_data": [example]}, "checks_total": 6}] * 3}
+
+
+def test_landing_opens_with_a_real_finding_read_from_the_benchmark(tmp_path, monkeypatch):
+    from cutover.web import app as app_module
+
+    monkeypatch.setattr(app_module, "load_measured", lambda name: _llm() if name == "llm" else None)
+    page = TestClient(create_app(tmp_path)).get("/").text
+    assert "Meça o agora" in page and "Aprove" in page and "Um achado real" in page
+    assert "7.761.620.146" in page and "2.147.483.647" in page and "03/03" in page
+    assert page.count('class="voice"') == 1  # the serif voice appears once per view
+    for act in ("O problema", "A jornada", "A entrega", "Comece pelo AS-IS"):
+        assert act in page
+    assert "Não verificado em ambiente real" in page and "12 de 15" in page
+
+
+def test_landing_without_a_finding_shows_the_cost_gate_and_invents_nothing(tmp_path, monkeypatch):
+    from cutover.web import app as app_module
+
+    monkeypatch.setattr(app_module, "load_measured", lambda name: None)
+    monkeypatch.setattr(app_module, "BENCHMARK", tmp_path / "missing.json")
+    page = TestClient(create_app(tmp_path)).get("/").text
+    assert "Um achado real" not in page and "Portão de custo" in page and "dispatch.yaml" in page
+    assert "O tipo que estoura" not in page and "O defeito que passa" not in page and "O modelo que se aprova" not in page
+
+
+def test_landing_finding_ignores_failures_it_cannot_parse():
+    from cutover.web.report import landing_finding
+
+    assert landing_finding(None) is None
+    assert landing_finding(_llm("texto sem o padrão esperado")) is None
+    found = landing_finding(_llm())
+    assert found["column"] == "population" and found["suggested"] == "INT" and found["max"] == 7761620146 and found["times"] == 3
+
+
+def test_narrow_screens_cannot_be_widened_by_one_unbreakable_label():
+    """Regression: a long dataset name in the ledger header widened the hero grid track past the viewport."""
+    from pathlib import Path
+
+    css = Path("src/cutover/web/static/ledger.css").read_text(encoding="utf-8")
+    assert ".hero > * { min-width: 0; }" in css
+    assert "flex-wrap: wrap" in css.split(".ledger-head {")[1].split("}")[0]

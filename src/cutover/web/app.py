@@ -27,7 +27,7 @@ from cutover.codegen.generate import TARGETS as CODEGEN_TARGETS
 from cutover.codegen.generate import zip_bundle
 from cutover.web import runs as run_store
 from cutover.web.profiling import PROFILE_VERSION, ProfileError, profile_csv
-from cutover.web.report import build_context, consolidated_analysis, dataset_analysis
+from cutover.web.report import build_context, consolidated_analysis, dataset_analysis, landing_finding, load as load_measured
 from cutover.web.live import SESSION_BUDGET_USD, run_mapping_stream
 
 HERE = Path(__file__).parent
@@ -261,8 +261,10 @@ def create_app(
     @app.get("/")
     def landing(request: Request) -> Response:
         tiers = load_dispatch_tiers()
-        return render(request, "landing.html", tiers=tiers,
-                      max_cap=max(t["input_token_cap"] for t in tiers), bench=load_benchmark())
+        llm = load_measured("llm")
+        return render(request, "landing.html", tiers=tiers, max_cap=max(t["input_token_cap"] for t in tiers),
+                      bench=load_benchmark(), llm=llm, finding=landing_finding(llm),
+                      checks_n=max((r.get("checks_total", 0) for r in llm["runs"]), default=0) if llm else 0)
 
     @app.get("/login")
     def login_form(request: Request) -> Response:

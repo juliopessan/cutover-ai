@@ -95,7 +95,9 @@ def spark_type(col: ColumnPlan) -> str:
 
 def tsql_type(col: ColumnPlan) -> str:
     if col.kind == "string":
-        wanted = max(int(col.profile.get("max_len") or 1), 1)
+        # The profile measures characters, but a UTF-8 VARCHAR(n) counts bytes and an accented letter takes
+        # two, so size for the worst case of 2 bytes per character before rounding up to a bucket.
+        wanted = max(int(col.profile.get("max_len") or 1), 1) * 2
         return f"VARCHAR({next((b for b in VARCHAR_BUCKETS if b >= wanted), 8000)})"
     if col.kind == "decimal":
         precision, scale = _decimal_shape(col)
@@ -290,6 +292,7 @@ Gerado pelo Cutover em {datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')} a part
 > **Não verificado em ambiente real.** O código foi gerado por templates e validado só quanto à
 > sintaxe (SQL com sqlglot, Python com `ast`). Não foi executado em um workspace do {where}.
 > Rode primeiro em um ambiente de teste. Nada aqui apaga ou sobrescreve dados.
+> Roteiro de validação passo a passo: `docs/roteiro-validacao-workspace.md` no repositório do Cutover.
 
 ## Destino
 `{_fqn(target, p, quoted=False)}` · origem: `{p.source_path}`
