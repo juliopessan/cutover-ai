@@ -18,6 +18,7 @@ def summarize(events: list[dict[str, Any]]) -> dict[str, Any]:
         by[event["type"]] = event  # the last event of each type wins
     response, scored, checks = by.get("provider.response"), by.get("gate.scored"), by.get("checks")
     result, summary, policy = by.get("result"), by.get("summary"), by.get("policy")
+    rule = by.get("rule.corrected")
     failure = (by.get("error") or by.get("provider.error") or by.get("gate.blocked") or by.get("result.blocked") or {})
     completed = bool(result and checks and response)
     return {
@@ -26,9 +27,16 @@ def summarize(events: list[dict[str, Any]]) -> dict[str, Any]:
         "input_tokens": summary and summary["input_tokens"], "output_tokens": summary and summary["output_tokens"],
         "cost_usd": summary and summary["cost_usd"], "latency_ms": response and response["latency_ms"],
         "elapsed_ms": max((e.get("t_ms", 0) for e in events), default=0),
-        "pass_rate": checks and checks["pass_rate"], "policy_action": policy and policy["action"],
-        "mappings_json": json.dumps(result["mappings"], ensure_ascii=False) if result else None,
-        "checks_json": json.dumps(checks["checks"], ensure_ascii=False) if checks else None,
+        "pass_rate": (rule or checks or {}).get("pass_rate"), "policy_action": policy and policy["action"],
+        "mappings_json": json.dumps((rule or result)["mappings"], ensure_ascii=False) if result else None,
+        "checks_json": json.dumps((rule or checks)["checks"], ensure_ascii=False) if checks else None,
+        # A rule correction is an edit like any other: keep the model's suggestion and say what changed and why.
+        "edited": 1 if rule else 0,
+        "original_mappings_json": json.dumps(result["mappings"], ensure_ascii=False) if rule and result else None,
+        "edit_log_json": json.dumps([{
+            "at": datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S"), "by": "Cutover (regra)", "source": "auto-regra",
+            "changes": rule["changes"], "pass_rate_after": rule["pass_rate"], "reset_decision": False}],
+            ensure_ascii=False) if rule else "[]",
         "prompt": (by.get("payload.built") or {}).get("prompt"),
         "price_in": (scored or {}).get("price_in"), "price_out": (scored or {}).get("price_out"),
         "input_cap": (scored or {}).get("input_cap"), "output_cap": (scored or {}).get("output_cap"),
@@ -43,12 +51,13 @@ def save_run(db: Database, *, user_id: int, dataset_id: int, model: str, events:
         cursor = conn.execute(
             "INSERT INTO mapping_runs(dataset_id, user_id, status, model, tier, score, input_tokens, output_tokens, "
             "cost_usd, latency_ms, elapsed_ms, pass_rate, policy_action, mappings_json, checks_json, error, "
-            "prompt, price_in, price_out, input_cap, output_cap, estimated_cost_usd) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "prompt, price_in, price_out, input_cap, output_cap, estimated_cost_usd, edited, original_mappings_json, "
+            "edit_log_json) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (dataset_id, user_id, row["status"], model, row["tier"], row["score"], row["input_tokens"],
              row["output_tokens"], row["cost_usd"], row["latency_ms"], row["elapsed_ms"], row["pass_rate"],
              row["policy_action"], row["mappings_json"], row["checks_json"], row["error"], row["prompt"],
-             row["price_in"], row["price_out"], row["input_cap"], row["output_cap"], row["estimated_cost_usd"]))
+             row["price_in"], row["price_out"], row["input_cap"], row["output_cap"], row["estimated_cost_usd"],
+             row["edited"], row["original_mappings_json"], row["edit_log_json"]))
         return int(cursor.lastrowid or 0)
 
 

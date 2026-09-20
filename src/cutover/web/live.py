@@ -17,7 +17,7 @@ from cutover.governance.bridge import (
     tier_for_score,
     tier_output_cap,
 )
-from cutover.plugins.mapping import MappingSuggestionAgent, check_mapping
+from cutover.plugins.mapping import MappingSuggestionAgent, check_mapping, correct_mapping
 from cutover.refinement import ArtifactBranch, Attempt, RefinementPolicy, pass_rate_from_checks
 from cutover.telemetry.sink import InMemoryTelemetrySink
 
@@ -89,6 +89,14 @@ def run_mapping_stream(
         checks = check_mapping([c["name"] for c in columns], mappings, {c["name"]: c for c in profile["columns"]})
         pass_rate = pass_rate_from_checks(checks)
         send({"type": "checks", "checks": checks, "pass_rate": pass_rate})
+        if pass_rate < 1 and not result.payload.get("error"):  # an unreadable answer is not a mapping to correct
+            # Rule first: what a deterministic rule can fix costs nothing, so try it before any new model call.
+            profile_by_name = {c["name"]: c for c in profile["columns"]}
+            fixed, changes = correct_mapping(profile["columns"], mappings)
+            if changes:
+                fixed_checks = check_mapping([c["name"] for c in columns], fixed, profile_by_name)
+                send({"type": "rule.corrected", "mappings": fixed, "changes": changes, "checks": fixed_checks,
+                      "pass_rate": pass_rate_from_checks(fixed_checks), "pass_rate_before": pass_rate})
 
         totals = sink.totals_by_agent().get(agent.name, {"input_tokens": 0, "output_tokens": 0, "cost": 0.0})
         policy = RefinementPolicy()

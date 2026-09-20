@@ -52,6 +52,7 @@ docs/                 notas e o relatório em PDF; docs/reports/
 
 **Correção do mapeamento** (`correct_mapping`, `runs.revise`)
 - Uma sugestão reprovada pode ser corrigida por regra determinística ou à mão, **sem chamar o modelo**. Uma regra só troca um tipo por outro que os dados medidos comprovadamente comportam.
+- No fluxo ao vivo, a regra roda **antes** de qualquer nova chamada ao modelo: se as verificações falham e a resposta era legível, `correct_mapping` corrige (evento `rule.corrected`, custo zero) e a execução é salva como editada, com o original do modelo e o log `auto-regra`. O pass rate do evento `checks` continua sendo o da resposta original do modelo. Resposta ilegível não é corrigida por regra.
 - Editar **sempre** cancela a aprovação (o estado volta a `pending`), guarda a sugestão original e registra quem, quando e por quê. Não crie um caminho que edite sem isso.
 - O código gerado grava o hash do mapeamento aprovado e se ele foi editado no `manifest.json`.
 - Trabalho pesado de CPU (perfil de arquivo) roda em `asyncio.to_thread`; senão um upload grande congela o app inteiro (medido: `/healthz` de 2 ms para 3,6 s).

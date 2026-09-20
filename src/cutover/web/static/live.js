@@ -138,6 +138,9 @@
         paintChecks(ev.checks);
         stage("policy", "active"); break;
       }
+      case "rule.corrected":
+        step("ok", "Correção por regra (sem custo)", `${ev.changes.length} ajuste(s) determinístico(s); pass rate ${fmt(ev.pass_rate_before, 2)} → ${fmt(ev.pass_rate, 2)}. Nenhum modelo foi chamado; a aprovação continua sendo humana.`, t);
+        paintTable(ev.mappings, true); paintChecks(ev.checks); break;
       case "policy":
         stage("policy", "done"); step("info", "Política de refinamento: " + ev.action, ev.reason, t); break;
       case "summary":
@@ -150,7 +153,7 @@
       case "error":
         settle(); step("bad", "Erro", ev.message, t); break;
     }
-    if (ev.type === "checks") lastChecksPassed = ev.pass_rate >= 1;
+    if (ev.type === "checks" || ev.type === "rule.corrected") lastChecksPassed = ev.pass_rate >= 1;
   }
 
   const fixesBox = $("fixes"), fixesList = $("fixes-list"), fixesIntro = $("fixes-intro"), editLink = $("edit-link");

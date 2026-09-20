@@ -91,16 +91,15 @@ def test_a_corrected_mapping_always_passes_every_check(name):
 
 # ---- the workflow ------------------------------------------------------------------------------
 
-def test_blocked_suggestion_is_fixed_reapproved_and_generates_bigint(tmp_path):
+def test_blocked_suggestion_is_fixed_by_rule_at_run_time_then_approved_and_generates_bigint(tmp_path):
     client, location, run_id = boot(tmp_path)
     base = f"{location}/mapping/runs/{run_id}"
-    assert client.post(base + "/decision", data={"decision": "approved"}).status_code == 409  # gate blocks INT
+    row = sqlite3.connect(tmp_path / "cutover.db").execute(
+        "SELECT pass_rate, decision, edited, original_mappings_json, edit_log_json FROM mapping_runs WHERE id = ?", (run_id,)).fetchone()
+    assert row[0] == 1.0 and row[1] == "pending" and row[2] == 1  # the gate would block INT; the rule already fixed it
+    assert json.loads(row[3])["population"]["type"] == "int"  # the model's suggestion is kept
+    assert json.loads(row[4])[0]["changes"][0]["to"] == "bigint"
 
-    preview = client.get(base + "/fixes").json()
-    assert preview["ok"] and preview["changes"][0]["to"] == "bigint"
-
-    fixed = client.post(base + "/fix", json={"mode": "auto"}).json()
-    assert fixed["ok"] and fixed["pass_rate"] == 1.0 and fixed["decision"] == "pending"
     assert client.post(base + "/fix", json={"mode": "auto"}).status_code == 409  # nothing left to fix
     assert client.post(base + "/decision", data={"decision": "approved"}).json()["ok"]
 
@@ -143,7 +142,7 @@ def test_corrections_are_private_and_the_edit_page_renders(tmp_path):
     base = f"{location}/mapping/runs/{run_id}"
     page = client.get(base + "/edit").text
     assert "Corrigir o mapeamento" in page and "Aplicar correções sugeridas por regra" in page and 'class="f-type"' in page
-    assert page.count("<h1") == 1 and "type_fits_data" in page
+    assert page.count("<h1") == 1
     client.post(base + "/fix", json={"mode": "auto"})
     assert "Histórico de edições" in client.get(base + "/edit").text and "editada" in client.get(location + "/mapping").text
     client.post("/logout")

@@ -132,7 +132,7 @@ def test_approve_then_report_and_download(tmp_path):
 
 
 def test_cannot_approve_when_checks_failed(tmp_path):
-    client, location = make(tmp_path, FakeProvider('{"id": "same", "unit price": "same"}'))
+    client, location = make(tmp_path, FakeProvider("sorry, no JSON here"))
     run_id, _ = run_once(client, location)
     response = client.post(f"{location}/mapping/runs/{run_id}/decision", data={"decision": "approved"})
     assert response.status_code == 409 and not response.json()["ok"]
@@ -303,3 +303,41 @@ def test_migration_parameters_are_validated_and_data_is_private(tmp_path):
     client.post("/signup", data={"email": "b@example.com", "password": "correct-horse-1"})
     assert client.get(location + "/migration").status_code == 404
     assert client.get(location + "/migration/download").status_code == 404
+
+
+RULE_FIXABLE = '{"id": "same", "unit price": "same", "amount": {"target": "amount", "type": "int"}}'
+
+
+def test_a_failing_suggestion_is_fixed_by_rule_before_any_new_model_call(tmp_path):
+    provider = FakeProvider(RULE_FIXABLE)
+    client, location = make(tmp_path, provider)
+    evs = events(client.post(location + "/mapping/run"))
+    by_type = {e["type"]: e for e in evs}
+    assert by_type["checks"]["pass_rate"] < 1.0  # the model's own answer is still reported as it was
+    fix = by_type["rule.corrected"]
+    assert fix["pass_rate_before"] < 1.0 and fix["pass_rate"] == 1.0 and fix["changes"]
+    assert fix["mappings"]["amount"]["type"] == "decimal"  # 10.5 does not fit int; the measured type is decimal
+    assert len(provider.calls) == 1  # no second call: the correction cost nothing
+    run_id = by_type["saved"]["run_id"]
+    run = client.get(f"{location}/mapping/runs/{run_id}/download").text
+    assert "amount,amount,decimal,pending" in run and "same_2" in run  # stored corrected, still awaiting a human
+    assert client.post(f"{location}/mapping/runs/{run_id}/decision", data={"decision": "approved"}).json()["ok"]
+
+
+def test_rule_correction_is_recorded_as_an_edit_with_the_original_kept(tmp_path):
+    from cutover.web.db import Database
+    from cutover.web.runs import load_run
+
+    client, location = make(tmp_path, FakeProvider(RULE_FIXABLE))
+    run_id = next(e["run_id"] for e in events(client.post(location + "/mapping/run")) if e["type"] == "saved")
+    dataset_id = int(location.rstrip("/").split("/")[-1])
+    run = load_run(Database(tmp_path / "cutover.db"), dataset_id=dataset_id, user_id=1, run_id=run_id)
+    assert run["edited"] and run["original_mappings"]["amount"]["type"] == "int"
+    assert run["edit_log"][0]["by"] == "Cutover (regra)" and run["edit_log"][0]["source"] == "auto-regra"
+    assert run["decision"] == "pending" and run["pass_rate"] == 1.0
+
+
+def test_a_passing_suggestion_is_left_alone(tmp_path):
+    client, location = make(tmp_path, FakeProvider())
+    types = [e["type"] for e in events(client.post(location + "/mapping/run"))]
+    assert "rule.corrected" not in types
