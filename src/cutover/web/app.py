@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from collections.abc import Callable
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import urlencode, urlparse
 
 from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
@@ -22,6 +22,9 @@ from fastapi.templating import Jinja2Templates
 from cutover.governance.bridge import load_dispatch_tiers
 from cutover.web import auth
 from cutover.web.db import Database
+from cutover.codegen import CodegenError, Params, build_bundle, default_params
+from cutover.codegen.generate import TARGETS as CODEGEN_TARGETS
+from cutover.codegen.generate import zip_bundle
 from cutover.web import runs as run_store
 from cutover.web.profiling import PROFILE_VERSION, ProfileError, profile_csv
 from cutover.web.report import build_context, consolidated_analysis, dataset_analysis
@@ -175,6 +178,73 @@ def create_app(
             "items": items, "c": consolidated_analysis(items) if items else None, "user": user, "targets": TARGETS,
             "generated_at": datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC"),
         })
+
+    # ---- migration code generation (generates only; never executes) -------------------------
+
+    def migration_context(request: Request, dataset_id: int) -> tuple[Any, ...] | Response:
+        """Resolve dataset, approved run and parameters. Returns a Response when the request must stop early."""
+        user = current_user(request)
+        if not user:
+            return RedirectResponse("/login", status_code=303)
+        with db.connect() as conn:
+            row = conn.execute("SELECT * FROM datasets WHERE id = ? AND user_id = ?", (dataset_id, user["id"])).fetchone()
+        if not row:
+            return render(request, "notfound.html", 404)
+        run = run_store.best_run(db, dataset_id=dataset_id, user_id=user["id"])
+        target = request.query_params.get("target", row["target"])
+        if target not in CODEGEN_TARGETS:
+            target = row["target"]
+        base = default_params(row["filename"], target)
+        q = request.query_params
+        params = Params(
+            table=q.get("table", base.table).strip(), schema=q.get("schema", base.schema).strip(),
+            catalog=(q.get("catalog", base.catalog or "").strip() or None) if target == "databricks" else None,
+            source_path=q.get("source_path", base.source_path).strip(), drop_duplicates=q.get("drop_duplicates") == "1")
+        return user, row, run, target, params
+
+    @app.get("/app/datasets/{dataset_id}/migration")
+    def migration_page(request: Request, dataset_id: int) -> Response:
+        ctx = migration_context(request, dataset_id)
+        if isinstance(ctx, Response):
+            return ctx
+        user, row, run, target, params = ctx
+        profile = json.loads(row["profile_json"])
+        files: dict[str, str] = {}
+        error = None
+        approved = bool(run and run["decision"] == "approved")
+        if approved:
+            try:
+                files = build_bundle(target=target, dataset=dict(row), profile=profile, run=run, params=params)
+            except CodegenError as exc:
+                error = str(exc)
+        query = urlencode({"target": target, "table": params.table, "schema": params.schema, "catalog": params.catalog or "",
+                           "source_path": params.source_path, "drop_duplicates": "1" if params.drop_duplicates else "0"})
+        return render(request, "migration.html", 400 if error else 200, dataset=dict(row), run=run, approved=approved,
+                      target=target, params=params, files=files, error=error, query=query, profile=profile,
+                      targets=TARGETS, target_label=TARGETS.get(target, target))
+
+    @app.get("/app/datasets/{dataset_id}/migration/download")
+    def migration_download(request: Request, dataset_id: int) -> Response:
+        ctx = migration_context(request, dataset_id)
+        if isinstance(ctx, Response):
+            return ctx
+        user, row, run, target, params = ctx
+        if not run or run["decision"] != "approved":
+            return Response("Aprove o mapeamento antes de gerar código.", status_code=409)
+        try:
+            files = build_bundle(target=target, dataset=dict(row), profile=json.loads(row["profile_json"]), run=run, params=params)
+        except CodegenError as exc:
+            return Response(str(exc), status_code=400)
+        payload = zip_bundle(files)
+        import hashlib
+
+        with db.connect() as conn:
+            conn.execute("INSERT INTO migration_bundles(dataset_id, user_id, run_id, target, params_json, bundle_sha256) VALUES (?,?,?,?,?,?)",
+                         (dataset_id, user["id"], run["id"], target, json.dumps({"table": params.table, "schema": params.schema,
+                          "catalog": params.catalog, "source_path": params.source_path, "drop_duplicates": params.drop_duplicates}),
+                          hashlib.sha256(payload).hexdigest()))
+        name = f"migracao-{params.table}-{target}.zip"
+        return Response(payload, media_type="application/zip", headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
     @app.get("/relatorio")
     def report(request: Request) -> Response:

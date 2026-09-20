@@ -277,3 +277,14 @@ def test_static_assets_are_versioned_against_stale_caches(client):
     page = client.get("/").text
     assert "/static/ledger.css?v=" in page
     assert 'href="/static/ledger.css"' not in page
+
+
+def test_no_page_heading_reuses_the_layout_container_class(client):
+    """`.page` is the max-width/padding container; using it on a heading offsets the title (regression)."""
+    signup(client)
+    client.post("/app/datasets", files={"file": ("d.csv", CSV)}, data={"target": "databricks"})
+    import re
+
+    for url in ("/", "/app", "/app/datasets/1", "/app/datasets/1/mapping", "/login"):
+        for heading in re.findall(r"<h[1-6][^>]*>", client.get(url).text):
+            assert 'class="page"' not in heading, (url, heading)

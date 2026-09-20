@@ -4,7 +4,7 @@ Este arquivo vale para qualquer agente de código (Claude Code, Codex, Cursor). 
 
 ## Missão
 
-O Cutover faz **AI-IS**: assessment do estado atual (AS-IS) dos dados com IA, entregue **sem migrar de plataforma**. Hoje cobre perfilamento determinístico de CSVs e sugestão de mapeamento com IA sob portão de custo. Migração, validação e reconciliação estão fora do escopo do AI-IS.
+O Cutover faz **AI-IS**: assessment do estado atual (AS-IS) dos dados com IA, entregue **sem migrar de plataforma**. Hoje cobre perfilamento determinístico de CSVs e sugestão de mapeamento com IA sob portão de custo. A **execução** de migração está fora do escopo: depois da aprovação humana, `cutover.codegen` gera DDL, notebook de carga e SQL de reconciliação para Databricks e Fabric, mas o Cutover nunca os executa.
 
 Princípio central: **o que é medido nunca se mistura com o que é afirmado**. Números calculados vêm de código determinístico; modelos só analisam, sugerem e explicam, e nada que um modelo sugere é aplicado sem aprovação humana.
 
@@ -50,6 +50,13 @@ docs/                 notas e o relatório em PDF; docs/reports/
 - O teto de saída do nível vira o `max_tokens` da chamada. Tokens e custo vêm do provedor; um stream sem `usage` deve falhar, nunca ser estimado em silêncio.
 - Toda sugestão de modelo sai com `requires_approval` e passa por verificações determinísticas (`check_mapping`). Cada execução é persistida em `mapping_runs`, e a aprovação humana só é aceita se todas as verificações passaram (`cutover.web.runs.decide`). O pass rate vem dessas verificações, nunca de uma nota que o modelo dá a si mesmo.
 
+**Geração de código** (`cutover/codegen/`)
+- Determinística, por templates. Nenhum modelo escreve código de migração.
+- Só gera a partir de uma execução **aprovada**; a rota devolve 409 caso contrário.
+- Todo identificador é validado (`^[A-Za-z_][A-Za-z0-9_]*$`), o escape de string é específico do dialeto (Spark usa `\'`, T-SQL usa `''`) e o nome do arquivo enviado é saneado antes de entrar em comentários. Há testes de injeção; mantenha-os.
+- Os valores esperados na reconciliação vêm do **perfil medido**. `tests/test_codegen.py` carrega o CSV num motor independente (SQLite) e roda o SQL gerado; um dado adulterado precisa dar `DIVERGE`.
+- O código gerado **não foi executado** em Databricks ou Fabric reais. Não afirme o contrário na UI, nos docs ou nas mensagens.
+
 **Medido versus assumido** (vale para UI, README, relatório e mensagens)
 - Não apresente como medido o que não foi calculado. Premissas e estimativas aparecem sinalizadas como tais.
 - Não invente métricas, depoimentos, preços ou clientes. Sem medição, a seção correspondente não aparece.
@@ -90,4 +97,4 @@ O macOS marca o `.pth` do `pip install -e` como oculto e o Python 3.14 **ignora 
 
 ## Limitações conhecidas
 
-O app é de nó único (SQLite e uploads em disco), sem HTTPS por padrão, com cadastro aberto e limite de execuções ao vivo por usuário. O score que escolhe o nível é heurístico e precisa de calibração. O plano de migração não existe (fora do escopo do AI-IS). O baseline manual é informado pelo analista, não medido por um instrumento independente.
+O app é de nó único (SQLite e uploads em disco), sem HTTPS por padrão, com cadastro aberto e limite de execuções ao vivo por usuário. O score que escolhe o nível é heurístico e precisa de calibração. A execução da migração não existe (fora do escopo); o código gerado não foi rodado em workspaces reais, e o notebook só passou por checagem de sintaxe. O baseline manual é informado pelo analista, não medido por um instrumento independente.

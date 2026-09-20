@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Código de migração — {{ dataset.filename }} — Cutover{% endblock %}
+{% block content %}
+<main>
+  <div class="app-head">
+    <p class="eyebrow">Geração de código · {{ target_label }}</p>
+    <h1 class="ptitle" style="overflow-wrap: anywhere">Código de migração de {{ dataset.filename }}</h1>
+    <p class="lede">DDL, notebook de carga e reconciliação gerados do mapeamento <b>aprovado</b> e do perfil medido. O código é gerado por templates, sem IA, e <b>nunca é executado por aqui</b>: quem roda é uma pessoa.</p>
+  </div>
+
+  {% if not approved %}
+  <div class="flag"><span class="flag-k">Mapeamento não aprovado</span>
+    <p>{% if run %}A sugestão está <code>{{ {'pending': 'aguardando decisão', 'rejected': 'rejeitada'}.get(run.decision, run.decision) }}</code>. {% else %}Ainda não há sugestão de mapeamento. {% endif %}O código só é gerado depois da aprovação humana.</p></div>
+  <div class="cta-row" style="margin-top: 20px"><a class="btn" href="/app/datasets/{{ dataset.id }}/mapping">Ir para o mapeamento</a><a class="btn ghost" href="/app/datasets/{{ dataset.id }}">Voltar ao dataset</a></div>
+  {% else %}
+  <div class="flag" style="margin-bottom: 24px"><span class="flag-k">Não verificado em ambiente real</span>
+    <p>O código foi validado só quanto à <code>sintaxe</code> (SQL com sqlglot, Python com ast) e a reconciliação foi testada contra a mesma carga em um motor independente. Ele <code>não foi executado</code> em um workspace do {{ target_label }}. Rode primeiro em ambiente de teste.</p></div>
+  {% if error %}<div class="flag" role="alert" style="margin-bottom: 24px"><span class="flag-k">Parâmetro inválido</span><p>{{ error }}</p></div>{% endif %}
+
+  <form class="params" method="get" action="/app/datasets/{{ dataset.id }}/migration">
+    <label>Destino
+      <select name="target">{% for key, label in targets.items() %}<option value="{{ key }}" {{ 'selected' if key == target }}>{{ label }}</option>{% endfor %}</select></label>
+    {% if target == 'databricks' %}<label>Catálogo<input name="catalog" value="{{ params.catalog or '' }}" required pattern="[A-Za-z_][A-Za-z0-9_]*"></label>{% endif %}
+    <label>Schema<input name="schema" value="{{ params.schema }}" required pattern="[A-Za-z_][A-Za-z0-9_]*"></label>
+    <label>Tabela<input name="table" value="{{ params.table }}" required pattern="[A-Za-z_][A-Za-z0-9_]*"></label>
+    <label class="wide">Caminho do arquivo de origem no destino<input name="source_path" value="{{ params.source_path }}" required></label>
+    {% if profile.duplicate_rows %}<label class="check"><input type="checkbox" name="drop_duplicates" value="1" {{ 'checked' if params.drop_duplicates }}> Remover as {{ profile.duplicate_rows }} linhas duplicadas na carga</label>{% endif %}
+    <button class="btn" type="submit">Atualizar código</button>
+  </form>
+
+  {% if files %}
+  <div class="cta-row" style="margin: 24px 0">
+    <a class="btn" href="/app/datasets/{{ dataset.id }}/migration/download?{{ query }}">Baixar pacote (.zip)</a>
+    <a class="btn ghost" href="/app/datasets/{{ dataset.id }}/report">Relatório do dataset</a>
+  </div>
+  <p class="note">Baseado na execução <b>#{{ run.id }}</b>, aprovada por {{ run.decided_by }} em {{ run.decided_at }} UTC. SHA-256 do arquivo de origem: <code>{{ profile.sha256 }}</code>.</p>
+
+  {% for name, text in files.items() %}
+  <section class="codefile">
+    <div class="codehead"><b class="mono">{{ name }}</b><button class="btn small ghost copy" type="button" data-target="code-{{ loop.index }}">Copiar</button></div>
+    <pre id="code-{{ loop.index }}" tabindex="0" aria-label="Conteúdo de {{ name }}">{{ text }}</pre>
+  </section>
+  {% endfor %}
+  {% endif %}
+  {% endif %}
+</main>
+<script src="{{ asset('migration.js') }}" defer></script>
+{% endblock %}

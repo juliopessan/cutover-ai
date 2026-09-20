@@ -57,6 +57,16 @@ CREATE TABLE IF NOT EXISTS manual_baselines (
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_baselines_dataset ON manual_baselines(dataset_id, id DESC);
+CREATE TABLE IF NOT EXISTS migration_bundles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    dataset_id INTEGER NOT NULL REFERENCES datasets(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    run_id INTEGER NOT NULL,
+    target TEXT NOT NULL,
+    params_json TEXT NOT NULL,
+    bundle_sha256 TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 CREATE INDEX IF NOT EXISTS idx_datasets_user ON datasets(user_id, id DESC);
 """
 

@@ -4,7 +4,7 @@
 <main>
   <div class="app-head">
     <p class="eyebrow">Perfil do dataset · {{ target_label }}</p>
-    <h1 class="page" style="overflow-wrap: anywhere">{{ dataset.filename }}</h1>
+    <h1 class="ptitle" style="overflow-wrap: anywhere">{{ dataset.filename }}</h1>
     <p class="lede">Os números ao lado foram calculados do arquivo enviado. A decisão de migrar continua <span class="voice">sua.</span></p>
   </div>
   <div class="dataset-grid">
@@ -73,6 +73,6 @@
     {% endif %}
   </section>
   <script src="{{ asset('baseline.js') }}" defer></script>
-  <div class="cta-row" style="padding-bottom: 56px"><a class="btn" href="/app/datasets/{{ dataset.id }}/mapping">{{ 'Ver ou refazer o mapeamento' if run else 'Sugerir mapeamento com IA' }}</a><a class="btn ghost" href="/app/datasets/{{ dataset.id }}/report">Gerar relatório</a><a class="btn ghost" href="/app">← Voltar aos datasets</a></div>
+  <div class="cta-row" style="padding-bottom: 56px"><a class="btn" href="/app/datasets/{{ dataset.id }}/mapping">{{ 'Ver ou refazer o mapeamento' if run else 'Sugerir mapeamento com IA' }}</a><a class="btn ghost" href="/app/datasets/{{ dataset.id }}/report">Gerar relatório</a>{% if run and run.decision == 'approved' %}<a class="btn" href="/app/datasets/{{ dataset.id }}/migration">Gerar código de migração</a>{% endif %}<a class="btn ghost" href="/app">← Voltar aos datasets</a></div>
 </main>
 {% endblock %}

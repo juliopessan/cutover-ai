@@ -230,7 +230,7 @@
   <ol>
     {% if not run %}<li>Gerar e revisar a sugestão de mapeamento.</li>
     {% elif run.decision == 'pending' %}<li>Revisar a sugestão e decidir: aprovar ou rejeitar.</li>
-    {% elif run.decision == 'approved' %}<li>Usar o CSV do mapeamento aprovado como insumo do destino; aplicá-lo está fora do escopo do AI-IS.</li>
+    {% elif run.decision == 'approved' %}<li>Gerar o código de migração (DDL, carga e reconciliação) a partir do mapeamento aprovado, na tela do dataset. O Cutover não o executa.</li>
     {% else %}<li>Refazer a sugestão de mapeamento.</li>{% endif %}
     {% for f in profile.flags %}<li>{{ f.title }}: {{ f.action }}</li>{% endfor %}
     {% if profile.privacy_hints %}<li>Confirmar com o dono do dado a sensibilidade das colunas sinalizadas (seção 02) antes de qualquer uso no destino.</li>{% endif %}

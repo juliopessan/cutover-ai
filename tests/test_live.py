@@ -258,3 +258,48 @@ def test_consolidated_report_is_private_and_handles_no_datasets(tmp_path):
     client.post("/logout")
     client.post("/signup", data={"email": "b@example.com", "password": "correct-horse-1"})
     assert "orders" not in client.get("/app/report").text and "Sem datasets" in client.get("/app/report").text
+
+
+def test_migration_code_requires_an_approved_mapping(tmp_path):
+    client, location = make(tmp_path, FakeProvider())
+    assert "Mapeamento não aprovado" in client.get(location + "/migration").text
+    assert client.get(location + "/migration/download").status_code == 409
+    run_id, _ = run_once(client, location)
+    assert client.get(location + "/migration/download").status_code == 409  # pending is not enough
+    client.post(f"{location}/mapping/runs/{run_id}/decision", data={"decision": "rejected"})
+    assert client.get(location + "/migration/download").status_code == 409
+
+
+def test_approved_mapping_generates_a_downloadable_audited_bundle(tmp_path):
+    import io
+    import json
+    import sqlite3
+    import zipfile
+
+    client, location = make(tmp_path, FakeProvider())
+    run_id, _ = run_once(client, location)
+    client.post(f"{location}/mapping/runs/{run_id}/decision", data={"decision": "approved"})
+    page = client.get(location + "/migration?target=databricks").text
+    assert "Não verificado em ambiente real" in page and "01_ddl.sql" in page and "unit_price" in page
+    assert "Baixar pacote" in page and client.get(location).text.count("Gerar código de migração") == 1
+
+    response = client.get(location + "/migration/download?target=microsoft_fabric&table=vendas&schema=dbo")
+    assert response.status_code == 200 and response.headers["content-type"] == "application/zip"
+    names = set(zipfile.ZipFile(io.BytesIO(response.content)).namelist())
+    assert {"01_ddl_warehouse.sql", "02_carga_lakehouse.ipynb", "03_reconciliacao.sql", "README.md", "manifest.json"} <= names
+    manifest = json.loads(zipfile.ZipFile(io.BytesIO(response.content)).read("manifest.json"))
+    assert manifest["execucao"] == run_id and manifest["executado"] is False
+    row = sqlite3.connect(tmp_path / "cutover.db").execute("SELECT run_id, target, bundle_sha256 FROM migration_bundles").fetchone()
+    assert row[0] == run_id and row[1] == "microsoft_fabric" and len(row[2]) == 64
+
+
+def test_migration_parameters_are_validated_and_data_is_private(tmp_path):
+    client, location = make(tmp_path, FakeProvider())
+    run_id, _ = run_once(client, location)
+    client.post(f"{location}/mapping/runs/{run_id}/decision", data={"decision": "approved"})
+    assert client.get(location + "/migration/download?table=x;DROP TABLE y").status_code == 400
+    assert "Parâmetro inválido" in client.get(location + "/migration?schema=a-b").text
+    client.post("/logout")
+    client.post("/signup", data={"email": "b@example.com", "password": "correct-horse-1"})
+    assert client.get(location + "/migration").status_code == 404
+    assert client.get(location + "/migration/download").status_code == 404

@@ -45,7 +45,7 @@ code { font-family: var(--mono); font-size: 12px; color: var(--ink); overflow-wr
 .stack { display: flex; flex-direction: column; gap: 20px; }
 
 /* type */
-h1.page { font-size: clamp(28px, 3.6vw, 40px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.08; }
+h1.ptitle { font-size: clamp(28px, 3.6vw, 40px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.08; }
 h1.display { font-size: clamp(46px, 7vw, 88px); font-weight: 800; line-height: .98; letter-spacing: -0.035em; }
 h2 { font-size: clamp(28px, 3.6vw, 40px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.08; }
 h3 { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; }
@@ -210,6 +210,17 @@ button.btn:disabled { opacity: .45; cursor: not-allowed; }
 .bar { height: 4px; background: var(--rule); margin-top: 12px; }
 .bar span { display: block; height: 100%; width: 0; background: var(--ink); transition: width .2s ease; }
 .upload-error { color: var(--clay-deep); }
+
+/* migration code */
+.params { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; align-items: end; margin-bottom: 8px; }
+.params .wide { grid-column: 1 / -1; }
+.params input[type=text], .params input:not([type]) { font: 400 15px var(--display); letter-spacing: 0; text-transform: none; color: var(--ink);
+  background: transparent; border: 1px solid var(--rule); border-radius: 0; padding: 12px 14px; width: 100%; }
+.params .check { flex-direction: row; align-items: center; gap: 10px; text-transform: none; letter-spacing: 0; font-family: var(--display); font-size: 13.5px; color: var(--ink-soft); }
+.codefile { margin-top: 22px; border: 1px solid var(--rule); }
+.codehead { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 14px; background: var(--paper-deep); border-bottom: 1px solid var(--rule); }
+.codefile pre { margin: 0; padding: 16px; font: 12px/1.6 var(--mono); overflow-x: auto; max-height: 460px; overflow-y: auto; color: var(--ink); white-space: pre; }
+@media (max-width: 900px) { .params { grid-template-columns: 1fr; } }
 
 /* auth + app */
 .auth { max-width: 420px; margin: 0 auto; padding: 72px 0 96px; }
