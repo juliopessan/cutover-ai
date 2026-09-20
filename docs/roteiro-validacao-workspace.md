@@ -55,19 +55,18 @@ Todos existem no repositório ou são gerados por script. Os números abaixo for
 Comece pelos dois primeiros: são pequenos e cobrem as diferenças de tipo mais delicadas. Só passe
 para os de vendas depois que eles fecharem.
 
-> **Atenção com `ref__populations.csv`.** No benchmark, o modelo sugeriu `INT` para `population` em
-> 3 de 3 execuções, e a verificação `type_fits_data` barrou todas (o máximo é 7.761.620.146). Isso é o
-> portão funcionando, mas significa que você **pode não conseguir aprovar** a sugestão: a aprovação só é
-> aceita com todas as verificações passando, e **hoje não existe edição manual do mapeamento**.
-> Rejeite e rode de novo (custa frações de centavo, e há um limite diário de execuções). Se o modelo
-> insistir em `INT`, comece por `ref__country_codes.csv`, registre a limitação no resultado e trate o
-> caso `BIGINT` como pendente até existir uma forma de corrigir o tipo antes de aprovar.
+> **`ref__populations.csv` é o caso que exercita a correção.** No benchmark e em uma execução real
+> posterior, o modelo sugeriu `INT` para `population` (o máximo é 7.761.620.146) e a verificação
+> `type_fits_data` barrou. Isso é o portão funcionando. Na tela do mapeamento, use **Aplicar correções**
+> (a regra troca `int` por `bigint`, sem chamar o modelo) e aprove o mapeamento corrigido. O manifesto do
+> pacote registra `"mapeamento_editado": true` e o hash do mapeamento aprovado. Esse é o caminho esperado
+> para esse dataset, e não um desvio.
 
 ## 3. Preparação no Cutover (igual para os dois destinos)
 
 1. Rode `make serve`, crie uma conta e envie o CSV com o destino desejado.
 2. Em **Sugerir mapeamento com IA**, rode e **aprove** a sugestão. A aprovação só é aceita se as
-   verificações passaram; se elas reprovarem, rejeite e rode de novo (veja o aviso da seção 2).
+   verificações passaram; se alguma reprovar, aplique as correções sugeridas ou edite manualmente (veja a seção 2). Editar cancela a aprovação, então aprove de novo.
 3. Em **Gerar código de migração**, escolha o destino e ajuste catálogo, schema, tabela e o caminho
    do arquivo de origem para o que existe no seu workspace de teste.
 4. Baixe o `.zip` e descompacte.
@@ -182,9 +181,9 @@ Classifique antes de mexer no código:
 
 O código pode ser considerado **executado com sucesso** em um destino quando:
 
-- os passos D1 a D7 (ou F1 a F6) passaram nos datasets `ref__country_codes.csv` e, quando o modelo
-  sugerir `BIGINT` e permitir a aprovação, `ref__populations.csv`;
-- a reconciliação fechou com todas as linhas `OK` (22 de 22 e, se aprovado, 8 de 8);
+- os passos D1 a D7 (ou F1 a F6) passaram nos datasets `ref__country_codes.csv` e `ref__populations.csv`
+  (este último com a correção `bigint` aplicada e aprovada);
+- a reconciliação fechou com todas as linhas `OK` (22 de 22 e 8 de 8);
 - os testes N1 a N7 se comportaram como descrito;
 - o resultado está registrado na tabela da seção 7, com a versão do ambiente.
 

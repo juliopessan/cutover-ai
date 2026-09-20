@@ -37,6 +37,12 @@
         <thead><tr><th>Coluna de origem</th><th>Destino sugerido</th><th>Tipo</th></tr></thead><tbody></tbody>
       </table></div>
       <div id="checks" class="flags"></div>
+      <div id="fixes" class="fixes" hidden>
+        <p class="eyebrow">Correções sugeridas por regra</p>
+        <p class="note" id="fixes-intro"></p>
+        <ul id="fixes-list" class="fixlist"></ul>
+        <div class="cta-row"><button class="btn" type="button" id="fixes-apply">Aplicar correções</button><a class="btn ghost" id="edit-link" href="#">Editar manualmente</a></div>
+      </div>
       <div id="decision" class="decision" hidden>
         <p class="eyebrow">Sua decisão</p>
         <p class="note" id="decision-text">Revise a sugestão e as verificações antes de decidir.</p>
@@ -61,7 +67,7 @@
           <td class="num">{{ (r.pass_rate | br_dec(2)) if r.pass_rate is not none else '—' }}</td>
           <td class="num">{{ (r.cost_usd | br_dec(6)) if r.cost_usd is not none else '—' }}</td>
           <td>{{ {'approved': 'Aprovada', 'rejected': 'Rejeitada', 'pending': 'Aguardando'}.get(r.decision, r.decision) if r.status == 'completed' else '—' }}</td>
-          <td>{% if r.status == 'completed' %}<a href="/app/datasets/{{ dataset.id }}/mapping/runs/{{ r.id }}/download">CSV</a>{% endif %}</td></tr>
+          <td>{% if r.status == 'completed' %}<a href="/app/datasets/{{ dataset.id }}/mapping/runs/{{ r.id }}/download">CSV</a> · <a href="/app/datasets/{{ dataset.id }}/mapping/runs/{{ r.id }}/edit">{{ 'Editar' }}</a>{% if r.edited %} · <span class="mono">editada</span>{% endif %}{% endif %}</td></tr>
       {% endfor %}</tbody></table></div>
   </section>
   {% endif %}

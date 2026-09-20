@@ -79,6 +79,25 @@
     s.meter.textContent = "≈ " + fmt(Math.ceil(s.chars / 4)) + " tokens recebidos (estimativa: caracteres ÷ 4; o valor medido chega no fim)";
   }
 
+  function paintTable(mappings, animate) {
+    const body = table.querySelector("tbody"); body.replaceChildren();
+    for (const [source, entry] of Object.entries(mappings)) {
+      const target = typeof entry === "string" ? entry : (entry && entry.target) || "—";
+      const type = typeof entry === "object" && entry ? entry.type || "—" : "—";
+      const row = el("tr", animate ? "reveal" : null); row.append(el("td", "name", source), el("td", "name", String(target)), el("td", null, String(type)));
+      if (animate) row.style.animationDelay = (body.children.length * 40) + "ms";
+      body.append(row);
+    }
+    idle.hidden = true; table.hidden = false;
+  }
+  function paintChecks(list) {
+    checks.replaceChildren();
+    for (const c of list) {
+      if (c.status === "passed") checks.append(el("p", "note", "✓ " + c.details));
+      else { const flag = el("div", "flag"); flag.append(el("span", "flag-k", c.name), el("p", null, c.details), el("p", "mono", c.offenders.join("; "))); checks.append(flag); }
+    }
+  }
+
   function render(ev) {
     const t = ev.t_ms || 0;
     switch (ev.type) {
@@ -110,25 +129,13 @@
         step("bad", "Sem sugestão", ev.reason, t); break;
       case "result": {
         step("info", "Sugestão recebida", ev.error ? "Saída do modelo não pôde ser lida: " + ev.error : "Nada foi aplicado; exige aprovação humana.", t);
-        idle.hidden = true;
-        const body = table.querySelector("tbody"); body.replaceChildren();
-        for (const [source, entry] of Object.entries(ev.mappings)) {
-          const target = typeof entry === "string" ? entry : (entry && entry.target) || "—";
-          const type = typeof entry === "object" && entry ? entry.type || "—" : "—";
-          const row = el("tr", "reveal"); row.append(el("td", "name", source), el("td", "name", String(target)), el("td", null, String(type)));
-          row.style.animationDelay = (body.children.length * 40) + "ms"; body.append(row);
-        }
-        table.hidden = false; break;
+        paintTable(ev.mappings, true); break;
       }
       case "checks": {
         const failed = ev.checks.filter((c) => c.status === "failed").length;
         stage("verify", "done");
         step(failed ? "bad" : "ok", "Verificações determinísticas", `${ev.checks.length - failed} de ${ev.checks.length} passaram (pass rate ${fmt(ev.pass_rate, 2)})`, t);
-        checks.replaceChildren();
-        for (const c of ev.checks) {
-          if (c.status === "passed") checks.append(el("p", "note", "✓ " + c.details));
-          else { const flag = el("div", "flag"); flag.append(el("span", "flag-k", c.name), el("p", null, c.details), el("p", "mono", c.offenders.join("; "))); checks.append(flag); }
-        }
+        paintChecks(ev.checks);
         stage("policy", "active"); break;
       }
       case "policy":
@@ -145,6 +152,34 @@
     }
     if (ev.type === "checks") lastChecksPassed = ev.pass_rate >= 1;
   }
+
+  const fixesBox = $("fixes"), fixesList = $("fixes-list"), fixesIntro = $("fixes-intro"), editLink = $("edit-link");
+  async function loadFixes() {
+    if (!runId || !fixesBox) return;
+    editLink.href = `${base}/runs/${runId}/edit`;
+    const response = await fetch(`${base}/runs/${runId}/fixes`);
+    const data = await response.json();
+    fixesList.replaceChildren();
+    if (!data.ok || !data.changes.length) { fixesBox.hidden = true; return; }
+    for (const c of data.changes) {
+      const li = el("li");
+      li.append(el("code", null, c.column), document.createTextNode(` · ${c.field}: ${c.from ?? "—"} → ${c.to ?? "remover"}. `), el("span", "why", c.reason));
+      fixesList.append(li);
+    }
+    fixesIntro.textContent = `${data.changes.length} correção(ões) que uma regra determinística consegue fazer. Nenhum modelo é chamado e nada custa. Depois de aplicar, a sugestão precisa ser aprovada de novo.`;
+    fixesBox.hidden = false;
+  }
+  $("fixes-apply")?.addEventListener("click", async () => {
+    const response = await fetch(`${base}/runs/${runId}/fix`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode: "auto" }) });
+    const data = await response.json();
+    if (!data.ok) { decisionText.textContent = data.message; return; }
+    paintTable(data.mappings, false); paintChecks(data.checks);
+    lastChecksPassed = data.pass_rate >= 1; $("approve").disabled = !lastChecksPassed;
+    fixesBox.hidden = true; actions.hidden = false; after.hidden = true;
+    decisionText.textContent = lastChecksPassed
+      ? "Correções aplicadas e verificadas. Revise e aprove: a aprovação vale para este mapeamento corrigido."
+      : "Correções aplicadas, mas ainda há verificações reprovadas. Edite manualmente ou rejeite.";
+  });
 
   async function decide(decision) {
     if (!runId) return;
@@ -164,6 +199,7 @@
     steps.replaceChildren(); summary.hidden = true; table.hidden = true; checks.replaceChildren(); idle.hidden = false;
     stages.forEach((s) => s.classList.remove("active", "done"));
     decisionBox.hidden = true; after.hidden = true; actions.hidden = false; runId = null; lastChecksPassed = false;
+    if (fixesBox) fixesBox.hidden = true;
     state.textContent = "Ao vivo"; state.classList.add("running");
     started = performance.now(); startVerbs();
     timer = setInterval(() => { clock.textContent = fmt((performance.now() - started) / 1000, 1) + " s"; }, 100);
@@ -197,7 +233,8 @@
         $("approve").disabled = !lastChecksPassed;
         decisionText.textContent = lastChecksPassed
           ? "Revise a sugestão e as verificações antes de decidir. Nada é aplicado automaticamente."
-          : "Há verificações reprovadas: esta sugestão não pode ser aprovada. Rejeite-a ou rode de novo.";
+          : "Há verificações reprovadas: esta sugestão não pode ser aprovada como está. Aplique as correções sugeridas, edite manualmente, rejeite ou rode de novo.";
+        loadFixes();
         $("download-link").href = `${base}/runs/${runId}/download`;
       }
       button.disabled = false; button.textContent = "Rodar de novo";

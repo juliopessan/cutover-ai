@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import unicodedata
 from collections.abc import Mapping, Sequence
 from typing import Any
 
@@ -139,3 +140,86 @@ class MappingSuggestionAgent(GovernedAgent):
         if not isinstance(mappings, dict):
             return {"mappings": {}, "requires_approval": True, "error": "unexpected model output"}
         return {"mappings": mappings, "requires_approval": True}
+
+
+# ---- deterministic corrections -----------------------------------------------------------------
+
+def snake_case(name: str) -> str:
+    """A Delta-safe lowercase name from any column name: accents dropped, symbols to underscores."""
+    ascii_name = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
+    cleaned = re.sub(r"[^0-9a-zA-Z]+", "_", ascii_name).strip("_").lower() or "coluna"
+    return (("c_" + cleaned) if cleaned[0].isdigit() else cleaned)[:128]
+
+
+def infer_type(profile: Mapping[str, Any]) -> str:
+    """The safest Delta type for what the profile measured."""
+    kind = profile.get("type")
+    if kind == "integer":
+        try:
+            wide = max(abs(float(profile.get("min") or 0)), abs(float(profile.get("max") or 0))) > INT32_MAX
+        except ValueError:
+            wide = True
+        return "bigint" if wide else "int"
+    return {"decimal": "decimal", "date": "date", "boolean": "boolean"}.get(str(kind), "string")
+
+
+def safe_type(profile: Mapping[str, Any], suggested: str) -> str:
+    """A type that holds the measured data, keeping the model's intent where it can."""
+    kind = profile.get("type")
+    if suggested in ("int", "bigint") and kind == "integer":
+        return "bigint"
+    if suggested in ("int", "bigint", "double") and kind == "decimal":
+        return "decimal"
+    return "string" if suggested in NUMERIC_TARGETS | {"boolean", "date", "timestamp"} else infer_type(profile)
+
+
+def _unique(name: str, taken: set[str]) -> str:
+    candidate, n = name, 2
+    while candidate in taken:
+        candidate, n = f"{name}_{n}", n + 1
+    return candidate
+
+
+def correct_mapping(
+    profile_columns: Sequence[Mapping[str, Any]], mappings: Mapping[str, Any]
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """Fix everything a rule can fix, and say why. Returns ``(corrected mappings, changes)``.
+
+    It never guesses beyond the measured profile: a type is only changed to one the data provably fits, and
+    a name only to its snake_case form. Anything else is left for a person.
+    """
+    changes: list[dict[str, Any]] = []
+    known = [c["name"] for c in profile_columns]
+    for extra in (k for k in mappings if k not in known):
+        changes.append({"column": extra, "field": "coluna", "from": "mapeada", "to": None, "reason": "A coluna não existe no arquivo."})
+    corrected: dict[str, Any] = {}
+    taken: set[str] = set()
+    for column in profile_columns:
+        name = column["name"]
+        entry = mappings.get(name)
+        target = entry if isinstance(entry, str) else (entry or {}).get("target") if isinstance(entry, dict) else None
+        kind = (entry or {}).get("type") if isinstance(entry, dict) else None
+        if target is None:
+            fresh = _unique(snake_case(name), taken)
+            changes.append({"column": name, "field": "destino", "from": None, "to": fresh, "reason": "A coluna não tinha destino no mapeamento."})
+            target = fresh
+        elif not TARGET_NAME.match(str(target)):
+            fixed = _unique(snake_case(str(target)), taken)
+            changes.append({"column": name, "field": "destino", "from": target, "to": fixed, "reason": "Nome fora de [a-z_][a-z0-9_]*."})
+            target = fixed
+        elif target in taken:
+            fixed = _unique(str(target), taken)
+            changes.append({"column": name, "field": "destino", "from": target, "to": fixed, "reason": "Destino repetido."})
+            target = fixed
+        taken.add(str(target))
+        if kind not in DELTA_TYPES:
+            fixed_type = infer_type(column)
+            changes.append({"column": name, "field": "tipo", "from": kind, "to": fixed_type, "reason": "Tipo ausente ou não suportado; inferido do perfil."})
+            kind = fixed_type
+        conflict = type_conflict(column, str(kind))
+        if conflict:
+            fixed_type = safe_type(column, str(kind))
+            changes.append({"column": name, "field": "tipo", "from": kind, "to": fixed_type, "reason": conflict[0].upper() + conflict[1:] + "."})
+            kind = fixed_type
+        corrected[name] = {"target": target, "type": kind}
+    return corrected, changes

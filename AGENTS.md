@@ -50,6 +50,13 @@ docs/                 notas e o relatório em PDF; docs/reports/
 - O teto de saída do nível vira o `max_tokens` da chamada. Tokens e custo vêm do provedor; um stream sem `usage` deve falhar, nunca ser estimado em silêncio.
 - Toda sugestão de modelo sai com `requires_approval` e passa por verificações determinísticas (`check_mapping`). Cada execução é persistida em `mapping_runs`, e a aprovação humana só é aceita se todas as verificações passaram (`cutover.web.runs.decide`). O pass rate vem dessas verificações, nunca de uma nota que o modelo dá a si mesmo.
 
+**Correção do mapeamento** (`correct_mapping`, `runs.revise`)
+- Uma sugestão reprovada pode ser corrigida por regra determinística ou à mão, **sem chamar o modelo**. Uma regra só troca um tipo por outro que os dados medidos comprovadamente comportam.
+- Editar **sempre** cancela a aprovação (o estado volta a `pending`), guarda a sugestão original e registra quem, quando e por quê. Não crie um caminho que edite sem isso.
+- O código gerado grava o hash do mapeamento aprovado e se ele foi editado no `manifest.json`.
+- Trabalho pesado de CPU (perfil de arquivo) roda em `asyncio.to_thread`; senão um upload grande congela o app inteiro (medido: `/healthz` de 2 ms para 3,6 s).
+- CSVs que o usuário baixa passam por `csv_safe`: uma célula começando com `=`, `+`, `-` ou `@` é uma fórmula para o Excel.
+
 **Geração de código** (`cutover/codegen/`)
 - Determinística, por templates. Nenhum modelo escreve código de migração.
 - Só gera a partir de uma execução **aprovada**; a rota devolve 409 caso contrário.

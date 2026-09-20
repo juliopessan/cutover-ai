@@ -57,6 +57,7 @@ class DeepSeekProvider:
         client: Any | None = None,
         api_key: str | None = None,
         base_url: str = DEFAULT_BASE_URL,
+        timeout_s: float | None = None,
     ) -> None:
         self.pricing = pricing
         if client is not None:
@@ -71,7 +72,10 @@ class DeepSeekProvider:
         resolved_key = api_key or os.getenv("DEEPSEEK_API_KEY")
         if not resolved_key:
             raise DeepSeekProviderError("DEEPSEEK_API_KEY is required")
-        self.client = OpenAI(api_key=resolved_key, base_url=base_url)
+        # The library default is 10 minutes. A reasoning model can be slow (25 s seen), but a hung call
+        # must not hold a worker and a budget reservation that long.
+        limit = timeout_s if timeout_s is not None else float(os.getenv("DEEPSEEK_TIMEOUT_S", "90"))
+        self.client = OpenAI(api_key=resolved_key, base_url=base_url, timeout=limit, max_retries=1)
 
     def complete(self, *, model: str, payload: str, **kwargs: Any) -> Any:
         """One chat completion. Pass ``on_delta(kind, text)`` to receive the stream as it arrives.

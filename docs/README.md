@@ -4,6 +4,7 @@
 |---|---|
 | [onboarding-and-target-strategy.md](onboarding-and-target-strategy.md) | Proactive onboarding and Fabric/Databricks target contracts |
 | [token-economics-and-headroom.md](token-economics-and-headroom.md) | Token budgets, Headroom compression and the economic gate |
+| [evolucao-da-plataforma.md](evolucao-da-plataforma.md) | O que evoluir, por prioridade, com a evidência de cada item |
 | [roteiro-validacao-workspace.md](roteiro-validacao-workspace.md) | Roteiro para validar o código de migração gerado em Databricks e Fabric reais |
 | [dsh-executor-evaluation.md](dsh-executor-evaluation.md) | Why the DeepSeek Harness executor is deferred |
 | [rtk/](rtk/overview.md) | RTK installation and project setup |

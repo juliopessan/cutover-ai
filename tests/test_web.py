@@ -334,3 +334,27 @@ def test_narrow_screens_cannot_be_widened_by_one_unbreakable_label():
     css = Path("src/cutover/web/static/ledger.css").read_text(encoding="utf-8")
     assert ".hero > * { min-width: 0; }" in css
     assert "flex-wrap: wrap" in css.split(".ledger-head {")[1].split("}")[0]
+
+
+def test_profiling_runs_off_the_event_loop(tmp_path, monkeypatch):
+    """Regression: profiling a 25 MB upload took ~5 s on the event loop and froze the app for every user."""
+    import asyncio
+
+    from cutover.web import app as app_module
+
+    real = app_module.profile_csv
+    on_loop: list[bool] = []
+
+    def spy(path):
+        try:
+            asyncio.get_running_loop()
+            on_loop.append(True)   # a running loop in this thread means we are blocking it
+        except RuntimeError:
+            on_loop.append(False)
+        return real(path)
+
+    monkeypatch.setattr(app_module, "profile_csv", spy)
+    c = TestClient(create_app(tmp_path), follow_redirects=False)
+    c.post("/signup", data={"email": "a@example.com", "password": "correct-horse-1"})
+    assert c.post("/app/datasets", files={"file": ("d.csv", CSV)}, data={"target": "databricks"}).status_code == 303
+    assert on_loop == [False]

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Corrigir mapeamento — {{ dataset.filename }} — Cutover{% endblock %}
+{% block content %}
+<main>
+  <div class="app-head">
+    <p class="eyebrow">Correção · execução #{{ run.id }}</p>
+    <h1 class="ptitle" style="overflow-wrap: anywhere">Corrigir o mapeamento de {{ dataset.filename }}</h1>
+    <p class="lede">Ajuste o destino e o tipo de cada coluna. As verificações são recalculadas na hora, <b>sem chamar o modelo</b> e sem custo. A sugestão original do modelo fica guardada e cada mudança é registrada com quem a fez.</p>
+  </div>
+  {% if run.decision == 'approved' %}<div class="flag" style="margin-bottom: 24px"><span class="flag-k">Sugestão aprovada</span><p>Esta sugestão já foi aprovada. Editar <code>cancela a aprovação</code>: uma aprovação vale para um mapeamento exato, então você precisará aprovar de novo.</p></div>{% endif %}
+  {% set failed = run.checks | selectattr('status', 'equalto', 'failed') | list %}
+  {% if failed %}<div class="flags" style="margin-bottom: 24px">{% for c in failed %}<div class="flag"><span class="flag-k">{{ c.name }}</span><p>{{ c.details }}</p><p class="mono">{{ c.offenders | join('; ') }}</p></div>{% endfor %}</div>{% endif %}
+
+  <div class="cta-row" style="margin-bottom: 20px">
+    <button class="btn" type="button" id="auto">Aplicar correções sugeridas por regra</button>
+    <a class="btn ghost" href="/app/datasets/{{ dataset.id }}/mapping">Voltar ao mapeamento</a>
+  </div>
+
+  <div class="tbl-wrap" id="edit" data-url="/app/datasets/{{ dataset.id }}/mapping/runs/{{ run.id }}/fix">
+    <table class="edit-table">
+      <thead><tr><th>Coluna de origem</th><th>Medido nos dados</th><th>Destino</th><th>Tipo</th>{% if run.edited %}<th>Original do modelo</th>{% endif %}</tr></thead>
+      <tbody>{% for c in columns %}
+        {% set entry = run.mappings.get(c.name) %}
+        {% set cur_target = entry if entry is string else (entry.target if entry else '') %}
+        {% set cur_type = '' if entry is string else (entry.type if entry else '') %}
+        {% set orig = (run.original_mappings or {}).get(c.name) %}
+        <tr data-column="{{ c.name }}">
+          <td class="name">{{ c.name }}</td>
+          <td>{{ c.type }}{% if notes[c.name] %}<br><span class="orig">{{ notes[c.name] }}</span>{% endif %}</td>
+          <td><input type="text" class="f-target" value="{{ cur_target }}" aria-label="Destino de {{ c.name }}" maxlength="128"></td>
+          <td><select class="f-type" aria-label="Tipo de {{ c.name }}">
+            {% if cur_type not in delta_types %}<option value="{{ cur_type }}" selected>{{ cur_type or '—' }} (inválido)</option>{% endif %}
+            {% for t in delta_types %}<option value="{{ t }}" {{ 'selected' if t == cur_type }}>{{ t }}</option>{% endfor %}</select></td>
+          {% if run.edited %}<td class="orig">{% if orig %}{{ (orig if orig is string else orig.target) }} · {{ '' if orig is string else orig.type }}{% else %}—{% endif %}</td>{% endif %}
+        </tr>
+      {% endfor %}</tbody>
+    </table>
+  </div>
+  <div class="cta-row" style="margin-top: 20px"><button class="btn" type="button" id="save">Salvar e revalidar</button></div>
+  <p class="note" id="edit-msg" role="status" aria-live="polite" style="margin-top: 14px"></p>
+  <div id="edit-checks" class="flags" style="margin-top: 12px"></div>
+
+  {% if run.edit_log %}
+  <section class="section" style="margin-top: 32px">
+    <p class="eyebrow">Histórico de edições</p>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Quando (UTC)</th><th>Quem</th><th>Origem</th><th>Alterações</th><th class="num">Pass rate depois</th></tr></thead>
+      <tbody>{% for e in run.edit_log | reverse %}<tr><td class="mono">{{ e.at }}</td><td>{{ e.by }}</td><td>{{ e.source }}</td>
+        <td>{% for ch in e.changes %}<code>{{ ch.column }}</code> {{ ch.field }}: {{ ch['from'] if ch['from'] is not none else '—' }} → {{ ch.to if ch.to is not none else 'remover' }}{{ '; ' if not loop.last }}{% endfor %}</td>
+        <td class="num">{{ e.pass_rate_after | br_dec(2) }}</td></tr>{% endfor %}</tbody></table></div>
+  </section>
+  {% endif %}
+</main>
+<script src="{{ asset('mapping_edit.js') }}" defer></script>
+{% endblock %}

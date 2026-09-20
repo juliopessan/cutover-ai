@@ -22,12 +22,13 @@ from fastapi.templating import Jinja2Templates
 from cutover.governance.bridge import load_dispatch_tiers
 from cutover.web import auth
 from cutover.web.db import Database
+from cutover.plugins.mapping import DELTA_TYPES, correct_mapping
 from cutover.codegen import CodegenError, Params, build_bundle, default_params
 from cutover.codegen.generate import TARGETS as CODEGEN_TARGETS
 from cutover.codegen.generate import zip_bundle
 from cutover.web import runs as run_store
 from cutover.web.profiling import PROFILE_VERSION, ProfileError, profile_csv
-from cutover.web.report import build_context, consolidated_analysis, dataset_analysis, landing_finding, load as load_measured
+from cutover.web.report import build_context, column_note, consolidated_analysis, dataset_analysis, landing_finding, load as load_measured
 from cutover.web.live import SESSION_BUDGET_USD, run_mapping_stream
 
 HERE = Path(__file__).parent
@@ -202,6 +203,81 @@ def create_app(
             source_path=q.get("source_path", base.source_path).strip(), drop_duplicates=q.get("drop_duplicates") == "1")
         return user, row, run, target, params
 
+    # ---- correcting a suggested mapping (no model call, no cost) -----------------------------
+
+    def owned_run(request: Request, dataset_id: int, run_id: int) -> tuple[Any, ...] | Response:
+        user = current_user(request)
+        if not user:
+            return JSONResponse({"ok": False, "message": "Faça login."}, status_code=401)
+        with db.connect() as conn:
+            row = conn.execute("SELECT * FROM datasets WHERE id = ? AND user_id = ?", (dataset_id, user["id"])).fetchone()
+        run = run_store.load_run(db, dataset_id=dataset_id, user_id=user["id"], run_id=run_id) if row else None
+        if not row or run is None or run["status"] != "completed":
+            return JSONResponse({"ok": False, "message": "Execução não encontrada."}, status_code=404)
+        return user, row, run, json.loads(row["profile_json"])["columns"]
+
+    @app.get("/app/datasets/{dataset_id}/mapping/runs/{run_id}/fixes")
+    def mapping_fixes(request: Request, dataset_id: int, run_id: int) -> Response:
+        ctx = owned_run(request, dataset_id, run_id)
+        if isinstance(ctx, Response):
+            return ctx
+        _, _, run, columns = ctx
+        corrected, changes = correct_mapping(columns, run["mappings"])
+        return JSONResponse({"ok": True, "changes": changes, "corrected": corrected})
+
+    @app.post("/app/datasets/{dataset_id}/mapping/runs/{run_id}/fix")
+    async def mapping_fix(request: Request, dataset_id: int, run_id: int) -> Response:
+        ctx = owned_run(request, dataset_id, run_id)
+        if isinstance(ctx, Response):
+            return ctx
+        user, _, run, columns = ctx
+        try:
+            body = await request.json()
+        except ValueError:
+            return JSONResponse({"ok": False, "message": "Corpo inválido."}, status_code=400)
+        if body.get("mode") == "auto":
+            new_mappings, changes = correct_mapping(columns, run["mappings"])
+            source = "regras determinísticas"
+            if not changes:
+                return JSONResponse({"ok": False, "message": "Nenhuma correção automática se aplica."}, status_code=409)
+        elif body.get("mode") == "manual" and isinstance(body.get("entries"), dict):
+            known = {c["name"] for c in columns}
+            new_mappings, changes = dict(run["mappings"]), []
+            for column, entry in body["entries"].items():
+                if column not in known or not isinstance(entry, dict):
+                    return JSONResponse({"ok": False, "message": f"Coluna desconhecida: {column!r}."}, status_code=400)
+                target, kind = str(entry.get("target", "")).strip()[:128], str(entry.get("type", "")).strip()[:32]
+                current = new_mappings.get(column)
+                before: dict[str, Any] = current if isinstance(current, dict) else {}
+                for field, old, new in (("destino", before.get("target"), target), ("tipo", before.get("type"), kind)):
+                    if old != new:
+                        changes.append({"column": column, "field": field, "from": old, "to": new, "reason": "Edição manual."})
+                new_mappings[column] = {"target": target, "type": kind}
+            source = "edição manual"
+            if not changes:
+                return JSONResponse({"ok": False, "message": "Nada foi alterado."}, status_code=409)
+        else:
+            return JSONResponse({"ok": False, "message": "Modo inválido."}, status_code=400)
+        ok, message, result = run_store.revise(db, run_id=run_id, dataset_id=dataset_id, user_id=user["id"], who=user["email"],
+                                               profile_columns=columns, new_mappings=new_mappings, changes=changes, source=source)
+        if not ok or result is None:
+            return JSONResponse({"ok": False, "message": message}, status_code=409)
+        return JSONResponse({"ok": True, "decision": "pending", **result})
+
+    @app.get("/app/datasets/{dataset_id}/mapping/runs/{run_id}/edit")
+    def mapping_edit_page(request: Request, dataset_id: int, run_id: int) -> Response:
+        user = current_user(request)
+        if not user:
+            return RedirectResponse("/login", status_code=303)
+        with db.connect() as conn:
+            row = conn.execute("SELECT * FROM datasets WHERE id = ? AND user_id = ?", (dataset_id, user["id"])).fetchone()
+        run = run_store.load_run(db, dataset_id=dataset_id, user_id=user["id"], run_id=run_id) if row else None
+        if not row or run is None or run["status"] != "completed":
+            return render(request, "notfound.html", 404)
+        columns = json.loads(row["profile_json"])["columns"]
+        return render(request, "mapping_edit.html", dataset=dict(row), run=run, columns=columns, delta_types=DELTA_TYPES,
+                      notes={c["name"]: column_note(c) for c in columns})
+
     @app.get("/app/datasets/{dataset_id}/migration")
     def migration_page(request: Request, dataset_id: int) -> Response:
         ctx = migration_context(request, dataset_id)
@@ -367,7 +443,8 @@ def create_app(
             stored.unlink(missing_ok=True)
             return fail(f"O arquivo excede {MAX_UPLOAD_BYTES // (1024 * 1024)} MB.", 413)
         try:
-            profile = profile_csv(stored)
+            # CPU-bound: run it off the event loop, or one large upload freezes the app for every user.
+            profile = await asyncio.to_thread(profile_csv, stored)
         except ProfileError as exc:
             stored.unlink(missing_ok=True)
             return fail(str(exc))

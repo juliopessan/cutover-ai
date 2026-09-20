@@ -280,6 +280,10 @@ def readme(target: str, cols: list[ColumnPlan], p: Params, filename: str, profil
         if f["kind"] == "identical_columns":
             risks.append(f"- Colunas com conteúdo idêntico: {', '.join(f['items'])}. Confirme se uma é redundante.")
     risks_text = "\n".join(risks) or "- Nenhum risco adicional apontado pelo perfil."
+    edited_note = ""
+    if run.get("edited"):
+        edited_note = (f"> **Mapeamento corrigido.** A sugestão do modelo foi alterada {len(run.get('edit_log') or [])} vez(es) "
+                       "antes da aprovação; a original e cada mudança ficam registradas no Cutover.\n\n")
     steps = ["1. Envie o arquivo de origem para o caminho indicado em `SOURCE_PATH` e confira o SHA-256 abaixo.",
              "2. Execute `01_ddl` (cria a tabela; falha se ela já existir).",
              f"3. Importe e execute `02_carga` ({'.py como notebook do Databricks' if target == 'databricks' else '.ipynb no Lakehouse do Fabric'}).",
@@ -289,7 +293,7 @@ def readme(target: str, cols: list[ColumnPlan], p: Params, filename: str, profil
 Gerado pelo Cutover em {datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')} a partir da execução #{run['id']},
 **aprovada por {run.get('decided_by') or '—'} em {run.get('decided_at') or '—'} UTC**.
 
-> **Não verificado em ambiente real.** O código foi gerado por templates e validado só quanto à
+{edited_note}> **Não verificado em ambiente real.** O código foi gerado por templates e validado só quanto à
 > sintaxe (SQL com sqlglot, Python com `ast`). Não foi executado em um workspace do {where}.
 > Rode primeiro em um ambiente de teste. Nada aqui apaga ou sobrescreve dados.
 > Roteiro de validação passo a passo: `docs/roteiro-validacao-workspace.md` no repositório do Cutover.
@@ -343,6 +347,9 @@ def build_bundle(*, target: str, dataset: dict[str, Any], profile: dict[str, Any
         "gerado_por": "cutover", "gerado_em": datetime.now(UTC).isoformat(timespec="seconds"),
         "destino": target, "dataset": filename, "sha256_origem": profile["sha256"],
         "execucao": run["id"], "aprovado_por": run.get("decided_by"), "aprovado_em": run.get("decided_at"),
+        # The approval covers this exact mapping; the hash lets anyone check that the code was built from it.
+        "mapeamento_sha256": _sha(json.dumps(run["mappings"], sort_keys=True, ensure_ascii=False)),
+        "mapeamento_editado": bool(run.get("edited")), "edicoes": len(run.get("edit_log") or []),
         "parametros": {"tabela": params.table, "schema": params.schema, "catalogo": params.catalog,
                        "caminho_origem": params.source_path, "remover_duplicatas": params.drop_duplicates},
         "arquivos": {name: _sha(text) for name, text in files.items()},

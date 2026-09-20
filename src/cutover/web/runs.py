@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+from datetime import UTC, datetime
 from typing import Any
 
 from cutover.web.db import Database
@@ -79,6 +80,8 @@ def _decode(row: Any) -> dict[str, Any] | None:
         return None
     data = dict(row)
     data["mappings"] = json.loads(data.pop("mappings_json") or "{}")
+    data["original_mappings"] = json.loads(data.pop("original_mappings_json", None) or "null")
+    data["edit_log"] = json.loads(data.pop("edit_log_json", None) or "[]")
     data["checks"] = json.loads(data.pop("checks_json") or "[]")
     return data
 
@@ -98,6 +101,42 @@ def decide(db: Database, *, run_id: int, user_id: int, dataset_id: int, decision
     return True, decision
 
 
+def revise(db: Database, *, run_id: int, dataset_id: int, user_id: int, who: str, profile_columns: list[dict[str, Any]],
+           new_mappings: dict[str, Any], changes: list[dict[str, Any]], source: str) -> tuple[bool, str, dict[str, Any] | None]:
+    """Replace a run's mapping with an edited one and re-run the deterministic checks. No model is called.
+
+    The model's original suggestion is kept, every change is logged with who and why, and the decision goes
+    back to pending: an approval covers one exact mapping, so editing it always requires approving again.
+    """
+    from cutover.plugins.mapping import check_mapping
+    from cutover.refinement import pass_rate_from_checks
+
+    run = load_run(db, dataset_id=dataset_id, user_id=user_id, run_id=run_id)
+    if run is None:
+        return False, "Execução não encontrada.", None
+    if run["status"] != "completed":
+        return False, "Só execuções concluídas podem ser corrigidas.", None
+    names = [c["name"] for c in profile_columns]
+    checks = check_mapping(names, new_mappings, {c["name"]: c for c in profile_columns})
+    pass_rate = pass_rate_from_checks(checks)
+    log = [*run["edit_log"], {"at": datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S"), "by": who, "source": source,
+                              "changes": changes, "pass_rate_after": pass_rate, "reset_decision": run["decision"] != "pending"}]
+    original = run["original_mappings"] if run["original_mappings"] is not None else run["mappings"]
+    with db.connect() as conn:
+        conn.execute(
+            "UPDATE mapping_runs SET mappings_json = ?, checks_json = ?, pass_rate = ?, edited = 1, original_mappings_json = ?, "
+            "edit_log_json = ?, decision = 'pending', decision_note = NULL, decided_at = NULL, decided_by = NULL WHERE id = ?",
+            (json.dumps(new_mappings, ensure_ascii=False), json.dumps(checks, ensure_ascii=False), pass_rate,
+             json.dumps(original, ensure_ascii=False), json.dumps(log, ensure_ascii=False), run_id))
+    return True, "ok", {"mappings": new_mappings, "checks": checks, "pass_rate": pass_rate, "changes": changes}
+
+
+def csv_safe(value: Any) -> Any:
+    """Neutralize spreadsheet formulas: a cell starting with = + - @ is executed by Excel and Sheets."""
+    text = "" if value is None else str(value)
+    return "'" + text if text[:1] in ("=", "+", "-", "@", "\t", "\r") else text
+
+
 def mapping_csv(run: dict[str, Any]) -> str:
     out = io.StringIO()
     writer = csv.writer(out)
@@ -105,5 +144,5 @@ def mapping_csv(run: dict[str, Any]) -> str:
     for source, entry in run["mappings"].items():
         target = entry if isinstance(entry, str) else (entry or {}).get("target", "")
         kind = "" if isinstance(entry, str) else (entry or {}).get("type", "")
-        writer.writerow([source, target, kind, run["decision"]])
+        writer.writerow([csv_safe(source), csv_safe(target), csv_safe(kind), run["decision"]])
     return out.getvalue()

@@ -74,6 +74,7 @@ CREATE INDEX IF NOT EXISTS idx_datasets_user ON datasets(user_id, id DESC);
 MAPPING_RUN_EXTRA_COLUMNS = {
     "prompt": "TEXT", "price_in": "REAL", "price_out": "REAL", "input_cap": "INTEGER", "output_cap": "INTEGER",
     "estimated_cost_usd": "REAL",
+    "original_mappings_json": "TEXT", "edited": "INTEGER DEFAULT 0", "edit_log_json": "TEXT",
 }
 
 

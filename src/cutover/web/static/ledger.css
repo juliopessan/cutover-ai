@@ -236,6 +236,13 @@ button.btn:disabled { opacity: .45; cursor: not-allowed; }
 .codefile pre { margin: 0; padding: 16px; font: 12px/1.6 var(--mono); overflow-x: auto; max-height: 460px; overflow-y: auto; color: var(--ink); white-space: pre; }
 @media (max-width: 900px) { .params { grid-template-columns: 1fr; } }
 
+.fixes { margin-top: 24px; padding: 18px 20px; border-left: 2px solid var(--clay); background: color-mix(in srgb, var(--clay) 9%, transparent); display: flex; flex-direction: column; gap: 12px; }
+.fixes .eyebrow { color: var(--clay-deep); margin: 0; } .fixes .eyebrow::before { background: var(--clay-deep); }
+.fixlist { margin: 0; padding-left: 18px; font-size: 13.5px; line-height: 1.6; } .fixlist .why { color: var(--ink-soft); }
+.edit-table input, .edit-table select { font: 400 13.5px var(--mono); color: var(--ink); background: transparent; border: 1px solid var(--rule); border-radius: 0; padding: 8px 10px; width: 100%; min-width: 130px; }
+.edit-table td { vertical-align: top; }
+.edit-table .orig { color: var(--ink-faint); font-family: var(--mono); font-size: 12px; }
+
 /* auth + app */
 .auth { max-width: 420px; margin: 0 auto; padding: 72px 0 96px; }
 form.field-set { display: flex; flex-direction: column; gap: 18px; margin-top: 28px; }

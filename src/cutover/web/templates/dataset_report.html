@@ -134,7 +134,16 @@
   <div class="sec-head"><span class="n">03</span><p class="eyebrow">Mapeamento</p><h2>Mapeamento sugerido</h2></div>
   <h3 class="title">Sugestão do modelo para {{ target_label }}, com verificações determinísticas</h3>
   {% if run %}
-  <p>Esta é uma <b>sugestão de modelo</b>: só as verificações abaixo são calculadas. Estado: <b>{{ state }}</b>{% if run.decision != 'pending' %} por {{ run.decided_by }} em {{ run.decided_at }} UTC{% endif %}.{% if run.decision_note %} Nota: {{ run.decision_note }}{% endif %}</p>
+  <p>Esta é uma <b>sugestão de modelo{{ ', corrigida' if run.edited }}</b>: só as verificações abaixo são calculadas. Estado: <b>{{ state }}</b>{% if run.decision != 'pending' %} por {{ run.decided_by }} em {{ run.decided_at }} UTC{% endif %}.{% if run.decision_note %} Nota: {{ run.decision_note }}{% endif %}</p>
+  {% if run.edited %}
+  <h4>Correções sobre a sugestão do modelo</h4>
+  <p>O mapeamento abaixo <b>não é</b> a saída crua do modelo: foi corrigido por uma pessoa ou por regras determinísticas antes da aprovação. A sugestão original está guardada.</p>
+  <div class="scroller"><table class="r">
+    <thead><tr><th>Quando (UTC)</th><th>Quem</th><th>Como</th><th>Coluna</th><th>Campo</th><th>De</th><th>Para</th><th>Motivo</th></tr></thead>
+    <tbody>{% for e in run.edit_log %}{% for ch in e.changes %}
+      <tr><td>{{ e.at }}</td><td>{{ e.by }}</td><td>{{ e.source }}</td><td class="k">{{ ch.column }}</td><td>{{ ch.field }}</td><td>{{ ch['from'] if ch['from'] is not none else '—' }}</td><td>{{ ch.to if ch.to is not none else 'remover' }}</td><td>{{ ch.reason }}</td></tr>
+    {% endfor %}{% endfor %}</tbody></table></div>
+  {% endif %}
   <h4>1. Mapeamento</h4>
   <div class="tbl-wrap"><table class="r">
     <thead><tr><th>Coluna de origem</th><th>Destino sugerido</th><th>Tipo</th><th>Medido nos dados</th></tr></thead>
