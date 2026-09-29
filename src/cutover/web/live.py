@@ -89,19 +89,21 @@ def run_mapping_stream(
         checks = check_mapping([c["name"] for c in columns], mappings, {c["name"]: c for c in profile["columns"]})
         pass_rate = pass_rate_from_checks(checks)
         send({"type": "checks", "checks": checks, "pass_rate": pass_rate})
+        effective_rate = pass_rate  # what the policy judges: the mapping as it will be stored
         if pass_rate < 1 and not result.payload.get("error"):  # an unreadable answer is not a mapping to correct
             # Rule first: what a deterministic rule can fix costs nothing, so try it before any new model call.
             profile_by_name = {c["name"]: c for c in profile["columns"]}
             fixed, changes = correct_mapping(profile["columns"], mappings)
             if changes:
                 fixed_checks = check_mapping([c["name"] for c in columns], fixed, profile_by_name)
+                effective_rate = pass_rate_from_checks(fixed_checks)
                 send({"type": "rule.corrected", "mappings": fixed, "changes": changes, "checks": fixed_checks,
-                      "pass_rate": pass_rate_from_checks(fixed_checks), "pass_rate_before": pass_rate})
+                      "pass_rate": effective_rate, "pass_rate_before": pass_rate})
 
         totals = sink.totals_by_agent().get(agent.name, {"input_tokens": 0, "output_tokens": 0, "cost": 0.0})
         policy = RefinementPolicy()
         branch = ArtifactBranch(artifact_id)
-        branch.add(Attempt(tier, pass_rate, float(totals["cost"])))
+        branch.add(Attempt(tier, effective_rate, float(totals["cost"])))
         estimates = {t: agent.estimate_cost_usd(tokens, tier_output_cap(t)) for t in policy.tiers}
         decision = policy.decide(branch, estimates)
         send({"type": "policy", "action": decision.action.value, "tier": decision.tier, "reason": decision.reason})

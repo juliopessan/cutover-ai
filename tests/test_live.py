@@ -57,8 +57,7 @@ def test_live_run_reports_measured_cost_and_checks(tmp_path):
 
 
 def test_bad_model_output_fails_checks_and_is_never_accepted(tmp_path):
-    bad = '{"id": "same", "unit price": "same"}'
-    client, location = make(tmp_path, FakeProvider(bad))
+    client, location = make(tmp_path, FakeProvider("sorry, no JSON here"))  # nothing a rule can fix
     by_type = {e["type"]: e for e in events(client.post(location + "/mapping/run"))}
     assert by_type["checks"]["pass_rate"] < 1.0
     assert by_type["policy"]["action"] != "accept"
@@ -341,3 +340,10 @@ def test_a_passing_suggestion_is_left_alone(tmp_path):
     client, location = make(tmp_path, FakeProvider())
     types = [e["type"] for e in events(client.post(location + "/mapping/run"))]
     assert "rule.corrected" not in types
+
+
+def test_policy_judges_the_corrected_mapping_not_the_original(tmp_path):
+    client, location = make(tmp_path, FakeProvider(RULE_FIXABLE))
+    by_type = {e["type"]: e for e in events(client.post(location + "/mapping/run"))}
+    assert by_type["checks"]["pass_rate"] < 1.0 and by_type["rule.corrected"]["pass_rate"] == 1.0
+    assert by_type["policy"]["action"] == "accept"
